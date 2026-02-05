@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Live Updates Playground"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
+            
+        <!-- Inputs -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Content Title">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ongoing Call" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Content Text">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="00:42 • High Quality" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Toggles -->
+        <CheckBox
+            android:id="@+id/cbOngoing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ongoing Activity (SetOngoing=true)"
+            android:checked="true"/>
+            
+        <CheckBox
+            android:id="@+id/cbPromoted"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Promoted (Live Update Chip)"
+            android:checked="true"/>
+
+        <CheckBox
+            android:id="@+id/cbChronometer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Show Chronometer"
+            android:checked="true"/>
+            
+        <!-- Style Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Notification Style:"
+            android:layout_marginTop="16dp"
+            android:textStyle="bold"/>
+            
+        <RadioGroup
+            android:id="@+id/rgStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <RadioButton android:id="@+id/rbStandard" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Standard"/>
+            <RadioButton android:id="@+id/rbCall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CallStyle" android:checked="true"/>
+            <RadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle"/>
+        </RadioGroup>
+
+        <!-- Color Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Colorized:"
+            android:layout_marginTop="8dp"
+            android:textStyle="bold"/>
+        <CheckBox
+            android:id="@+id/cbColorized"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Colorized Background (CallStyle default)"
+            android:checked="true"/>
+        
+        <!-- Actions -->
+        <Button
+            android:id="@+id/btnPost"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Post Notification"
+            android:layout_marginTop="24dp"/>
+            
+        <Button
+            android:id="@+id/btnUpdate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Update Existing (Simulate Live Data)"
+            android:layout_marginTop="8dp"/>
+            
+         <Button
+            android:id="@+id/btnCancel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cancel All"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#FF0000"/>
+
+    </LinearLayout>
+</ScrollView>
