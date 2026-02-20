@@ -17,19 +17,44 @@ class PlaygroundService : Service() {
 
     companion object {
         const val ACTION_START = "ACTION_START"
+        const val ACTION_CANCEL = "ACTION_CANCEL"
         const val ACTION_STOP = "ACTION_STOP"
         const val CHANNEL_ID = "live_updates_channel"
         const val NOTIFICATION_ID = 1001
     }
 
+    private val activeIds = mutableSetOf<Int>()
+    private lateinit var notificationManager: NotificationManager
+
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startPromotedNotification(intent)
-            ACTION_STOP -> stopSelf()
+            ACTION_CANCEL -> cancelNotification(intent)
+            ACTION_STOP -> {
+                activeIds.forEach { notificationManager.cancel(it) }
+                activeIds.clear()
+                stopSelf()
+            }
         }
         return START_NOT_STICKY
+    }
+
+    private fun cancelNotification(intent: Intent) {
+        val id = intent.getIntExtra("id", -1)
+        if (id != -1) {
+            notificationManager.cancel(id)
+            activeIds.remove(id)
+            if (activeIds.isEmpty()) {
+                stopSelf()
+            }
+        }
     }
 
     private fun startPromotedNotification(intent: Intent) {
@@ -37,6 +62,9 @@ class PlaygroundService : Service() {
         val text = intent.getStringExtra("text") ?: "Live Update Active"
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
+        val isPromoted = intent.getBooleanExtra("is_promoted", true)
+        
+        activeIds.add(notificationId)
         createNotificationChannel()
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -50,32 +78,47 @@ class PlaygroundService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSilent(true)
 
-        try {
-            val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
-            method.invoke(builder, true)
-        } catch (e: Exception) {
-            builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
+        if (isPromoted) {
+            try {
+                val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
+                method.invoke(builder, true)
+            } catch (e: Exception) {
+                builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
+            }
         }
 
+        // Progress Style
         try {
-            val nigga = "a"
+            val progressStyle = NotificationCompat.ProgressStyle()
+            progressStyle.addProgressSegment(
+                NotificationCompat.ProgressStyle.Segment(30 * 60 * 1000).setColor(Color.GREEN)
+            )
+            progressStyle.setProgress(15 * 60 * 1000)
+            builder.setStyle(progressStyle)
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        if (Build.VERSION.SDK_INT >= 29) {
-            try {
-               if (Build.VERSION.SDK_INT >= 36) {
-                   startForeground(notificationId, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-               } else {
-                   startForeground(notificationId, builder.build())
-               }
-            } catch (e: Exception) {
-               // Fallback
-               startForeground(notificationId, builder.build())
+        val notification = builder.build()
+        
+        // Use startForeground for the first one to keep service alive
+        if (activeIds.size == 1) {
+            if (Build.VERSION.SDK_INT >= 29) {
+                try {
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                    } else {
+                        startForeground(notificationId, notification)
+                    }
+                } catch (e: Exception) {
+                    startForeground(notificationId, notification)
+                }
+            } else {
+                startForeground(notificationId, notification)
             }
         } else {
-            startForeground(notificationId, builder.build())
+            // Just notify for others
+            notificationManager.notify(notificationId, notification)
         }
     }
 

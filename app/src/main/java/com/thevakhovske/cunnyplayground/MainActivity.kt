@@ -1,28 +1,34 @@
 package com.thevakhovske.cunnyplayground
 
 import android.Manifest
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Person
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
-import android.widget.Button
-import android.widget.CheckBox
-import android.widget.EditText
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.Toast
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+
+data class NotificationInfo(
+    var id: Int,
+    var title: String,
+    var text: String,
+    var iconRes: Int,
+    var isPromoted: Boolean,
+    var timestamp: Long = System.currentTimeMillis()
+)
 
 class MainActivity : AppCompatActivity() {
 
@@ -35,7 +41,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etTitle: EditText
     private lateinit var etText: EditText
-    private lateinit var etId: EditText
     private lateinit var cbOngoing: CheckBox
     private lateinit var cbPromoted: CheckBox
     private lateinit var cbChronometer: CheckBox
@@ -45,6 +50,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnPost: Button
     private lateinit var btnUpdate: Button
     private lateinit var btnCancel: Button
+    private lateinit var rvNotifications: RecyclerView
+
+    private val notifications = mutableListOf<NotificationInfo>()
+    private lateinit var adapter: NotificationAdapter
+    private var lastId = 1000
+    private var editingId: Int? = null
 
     private lateinit var notificationManager: NotificationManager
 
@@ -63,7 +74,6 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
         etTitle = findViewById(R.id.etTitle)
         etText = findViewById(R.id.etText)
-        etId = findViewById(R.id.etId)
         cbOngoing = findViewById(R.id.cbOngoing)
         cbPromoted = findViewById(R.id.cbPromoted)
         cbChronometer = findViewById(R.id.cbChronometer)
@@ -73,20 +83,75 @@ class MainActivity : AppCompatActivity() {
         btnPost = findViewById(R.id.btnPost)
         btnUpdate = findViewById(R.id.btnUpdate)
         btnCancel = findViewById(R.id.btnCancel)
+        rvNotifications = findViewById(R.id.rvNotifications)
+
+        adapter = NotificationAdapter(notifications, ::onNotificationMenuClick)
+        rvNotifications.layoutManager = LinearLayoutManager(this)
+        rvNotifications.adapter = adapter
     }
 
     private fun setupListeners() {
         btnPost.setOnClickListener {
+            editingId = null
             postNotification()
         }
 
         btnUpdate.setOnClickListener {
-            postNotification(update = true)
+            if (editingId != null) {
+                postNotification(idToUpdate = editingId)
+            } else if (notifications.isNotEmpty()) {
+                postNotification(idToUpdate = notifications.last().id)
+            } else {
+                Toast.makeText(this, "No notification to update", Toast.LENGTH_SHORT).show()
+            }
         }
 
         btnCancel.setOnClickListener {
-            notificationManager.cancelAll()
+            val intent = Intent(this, PlaygroundService::class.java).apply {
+                action = PlaygroundService.ACTION_STOP
+            }
+            startService(intent)
+            notifications.clear()
+            adapter.notifyDataSetChanged()
             Toast.makeText(this, "Cleared all notifications", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun onNotificationMenuClick(view: View, notification: NotificationInfo) {
+        val popup = PopupMenu(this, view)
+        popup.menu.add("Edit")
+        popup.menu.add("Delete")
+        popup.setOnMenuItemClickListener { item ->
+            when (item.title) {
+                "Edit" -> {
+                    editingId = notification.id
+                    etTitle.setText(notification.title)
+                    etText.setText(notification.text)
+                    cbPromoted.isChecked = notification.isPromoted
+                    // Could also set icon/style radio groups if tracked
+                    Toast.makeText(this, "Editing ID: ${notification.id}", Toast.LENGTH_SHORT).show()
+                }
+                "Delete" -> {
+                    cancelNotification(notification.id)
+                }
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun cancelNotification(id: Int) {
+        // Send cancel action to service
+        val intent = Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_CANCEL
+            putExtra("id", id)
+        }
+        startService(intent)
+        
+        val index = notifications.indexOfFirst { it.id == id }
+        if (index != -1) {
+            notifications.removeAt(index)
+            adapter.notifyItemRemoved(index)
         }
     }
 
@@ -110,7 +175,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun postNotification(update: Boolean = false) {
+    private fun postNotification(idToUpdate: Int? = null) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Permission missing!", Toast.LENGTH_SHORT).show()
@@ -120,9 +185,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         val title = etTitle.text.toString()
-        val text = etText.text.toString() + (if (update) " (Updated: ${System.currentTimeMillis() % 1000})" else "")
-        val idStr = etId.text.toString()
-        val notificationId = if (idStr.isNotEmpty()) idStr.toInt() else 1001
+        val text = etText.text.toString() + (if (idToUpdate != null) " (Updated)" else "")
+        
+        val notificationId = idToUpdate ?: ++lastId
         
         val iconRes = when (rgIcon.checkedRadioButtonId) {
             R.id.rbIconTimer -> R.drawable.ic_timer
@@ -131,22 +196,57 @@ class MainActivity : AppCompatActivity() {
             else -> R.mipmap.ic_launcher_round
         }
         
-        if (cbPromoted.isChecked || rgStyle.checkedRadioButtonId == R.id.rbProgress) {
-            val intent = Intent(this, PlaygroundService::class.java).apply {
-                action = PlaygroundService.ACTION_START
-                putExtra("title", title)
-                putExtra("text", text)
-                putExtra("id", notificationId)
-                putExtra("icon_res", iconRes)
-            }
-            
-            if (Build.VERSION.SDK_INT >= 26) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
+        // Update local list
+        val existingIndex = notifications.indexOfFirst { it.id == notificationId }
+        if (existingIndex != -1) {
+            notifications[existingIndex] = notifications[existingIndex].copy(title = title, text = text, iconRes = iconRes, isPromoted = cbPromoted.isChecked)
+            adapter.notifyItemChanged(existingIndex)
         } else {
-             Toast.makeText(this, "Select ProgressStyle", Toast.LENGTH_SHORT).show()
+            notifications.add(NotificationInfo(notificationId, title, text, iconRes, cbPromoted.isChecked))
+            adapter.notifyItemInserted(notifications.size - 1)
         }
+
+        val intent = Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_START
+            putExtra("title", title)
+            putExtra("text", text)
+            putExtra("id", notificationId)
+            putExtra("icon_res", iconRes)
+            putExtra("is_promoted", cbPromoted.isChecked)
+        }
+        
+        if (Build.VERSION.SDK_INT >= 26) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
+    private inner class NotificationAdapter(
+        private val items: List<NotificationInfo>,
+        private val onMenuClick: (View, NotificationInfo) -> Unit
+    ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
+
+        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val ivIcon: ImageView = view.findViewById(R.id.ivItemIcon)
+            val tvTitle: TextView = view.findViewById(R.id.tvItemTitle)
+            val tvInfo: TextView = view.findViewById(R.id.tvItemInfo)
+            val btnMenu: ImageButton = view.findViewById(R.id.btnItemMenu)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_notification, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val item = items[position]
+            holder.ivIcon.setImageResource(item.iconRes)
+            holder.tvTitle.text = item.title
+            holder.tvInfo.text = "ID: ${item.id} • ${if (item.isPromoted) "Promoted" else "Standard"}"
+            holder.btnMenu.setOnClickListener { onMenuClick(it, item) }
+        }
+
+        override fun getItemCount() = items.size
     }
 }
