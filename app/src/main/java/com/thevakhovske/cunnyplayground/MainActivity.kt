@@ -30,17 +30,18 @@ class MainActivity : AppCompatActivity() {
         const val CHANNEL_ID = "live_updates_channel"
         const val NOTIFICATION_ID = 1001
         const val PERMISSION_REQUEST_CODE = 101
-        // The extra key mentioned in context - potentially related to new features
         const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.app.extra.PROMOTED_ONGOING" 
     }
 
     private lateinit var etTitle: EditText
     private lateinit var etText: EditText
+    private lateinit var etId: EditText
     private lateinit var cbOngoing: CheckBox
     private lateinit var cbPromoted: CheckBox
     private lateinit var cbChronometer: CheckBox
     private lateinit var cbColorized: CheckBox
     private lateinit var rgStyle: RadioGroup
+    private lateinit var rgIcon: RadioGroup
     private lateinit var btnPost: Button
     private lateinit var btnUpdate: Button
     private lateinit var btnCancel: Button
@@ -62,11 +63,13 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
         etTitle = findViewById(R.id.etTitle)
         etText = findViewById(R.id.etText)
+        etId = findViewById(R.id.etId)
         cbOngoing = findViewById(R.id.cbOngoing)
         cbPromoted = findViewById(R.id.cbPromoted)
         cbChronometer = findViewById(R.id.cbChronometer)
         cbColorized = findViewById(R.id.cbColorized)
         rgStyle = findViewById(R.id.rgStyle)
+        rgIcon = findViewById(R.id.rgIcon)
         btnPost = findViewById(R.id.btnPost)
         btnUpdate = findViewById(R.id.btnUpdate)
         btnCancel = findViewById(R.id.btnCancel)
@@ -94,8 +97,6 @@ class MainActivity : AppCompatActivity() {
             val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
-                // Promoted notifications often imply high importance and sound/vibration might act weird with updates
-                // separating them might be better, but for now standard is fine.
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -120,88 +121,32 @@ class MainActivity : AppCompatActivity() {
 
         val title = etTitle.text.toString()
         val text = etText.text.toString() + (if (update) " (Updated: ${System.currentTimeMillis() % 1000})" else "")
+        val idStr = etId.text.toString()
+        val notificationId = if (idStr.isNotEmpty()) idStr.toInt() else 1001
         
-        // Intent for clicking the notification
-        val contentIntent = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        val iconRes = when (rgIcon.checkedRadioButtonId) {
+            R.id.rbIconTimer -> R.drawable.ic_timer
+            R.id.rbIconCall -> R.drawable.ic_call
+            R.id.rbIconAlert -> R.drawable.ic_alert
+            else -> R.mipmap.ic_launcher_round
+        }
         
-        // Full screen intent (required for CallStyle if not FGS/UIJ)
-        val fullScreenIntent = PendingIntent.getActivity(
-            this, 1, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        // Builder Setup
-        // We use Notification.Builder for 'CallStyle' native support or NotificationCompat
-        // Let's use NotificationCompat for ease, but map to native styles where essential.
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher_round) // Fallback icon
-            .setContentTitle(title)
-            .setContentText(text)
-            .setContentIntent(contentIntent)
-            .setFullScreenIntent(fullScreenIntent, true) // Required for CallStyle validity checks
-            .setOngoing(cbOngoing.isChecked)
-            .setOnlyAlertOnce(true)
-            .setUsesChronometer(cbChronometer.isChecked)
+        if (cbPromoted.isChecked || rgStyle.checkedRadioButtonId == R.id.rbProgress) {
+            val intent = Intent(this, PlaygroundService::class.java).apply {
+                action = PlaygroundService.ACTION_START
+                putExtra("title", title)
+                putExtra("text", text)
+                putExtra("id", notificationId)
+                putExtra("icon_res", iconRes)
+            }
             
-        // Colorized
-        if (cbColorized.isChecked) {
-            builder.setColorized(true)
-            builder.setColor(Color.CYAN) // A distinct color
-        }
-
-        // Extras for "Promoted" logic (Unstable/Hidden APIs)
-        if (cbPromoted.isChecked) {
-             // Try to promote using extras. 
-             // Note: Android 13+ 'CallStyle' is the official way, but checking if there's a hidden extra.
-             // Based on user request history, we add this.
-             builder.extras.putBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, true)
-        }
-
-        
-        // Styling
-        when (rgStyle.checkedRadioButtonId) {
-            R.id.rbCall -> {
-                val person = androidx.core.app.Person.Builder()
-                    .setName("Cunny Playground")
-                    .setIcon(androidx.core.graphics.drawable.IconCompat.createWithResource(this, R.mipmap.ic_launcher))
-                    .setImportant(true)
-                    .build()
-                
-                val hangupIntent = PendingIntent.getBroadcast(this, 1, Intent("ACTION_HANGUP"), PendingIntent.FLAG_IMMUTABLE)
-                
-                // CallStyle requires a 'verification' in some contexts, but acceptable for basic playground
-                val style = NotificationCompat.CallStyle.forOngoingCall(
-                    person,
-                    hangupIntent
-                )
-                builder.setStyle(style)
-                
-                // CallStyle implies promoted chip in status bar
+            if (Build.VERSION.SDK_INT >= 26) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
             }
-            R.id.rbProgress -> {
-                // Live Updates/Status Chips usually generally require a Foreground Service to be considered "Ongoing"
-                // and to prevent system killing.
-                val intent = Intent(this, PlaygroundService::class.java).apply {
-                    action = PlaygroundService.ACTION_START
-                    putExtra("title", title)
-                    putExtra("text", text)
-                }
-                
-                if (Build.VERSION.SDK_INT >= 26) {
-                    startForegroundService(intent)
-                } else {
-                    startService(intent)
-                }
-                return
-            }
-            R.id.rbStandard -> {
-                // No specific style, just standard
-            }
+        } else {
+             Toast.makeText(this, "Select ProgressStyle", Toast.LENGTH_SHORT).show()
         }
-
-        notificationManager.notify(NOTIFICATION_ID, builder.build())
     }
 }

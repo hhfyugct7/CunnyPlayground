@@ -35,12 +35,12 @@ class PlaygroundService : Service() {
     private fun startPromotedNotification(intent: Intent) {
         val title = intent.getStringExtra("title") ?: "Ongoing Task"
         val text = intent.getStringExtra("text") ?: "Live Update Active"
-        
-        // Ensure channel exists
+        val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
+        val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         createNotificationChannel()
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher_round)
+            .setSmallIcon(iconRes)
             .setContentTitle(title)
             .setContentText(text)
             .setOngoing(true)
@@ -48,9 +48,8 @@ class PlaygroundService : Service() {
             .setShowWhen(true)
             .setWhen(System.currentTimeMillis() + 30 * 60 * 1000)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSilent(true) // Tomato sets silent
+            .setSilent(true)
 
-        // Attempt Promoted
         try {
             val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
             method.invoke(builder, true)
@@ -58,45 +57,25 @@ class PlaygroundService : Service() {
             builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
         }
 
-        // Progress Style
         try {
-            val progressStyle = NotificationCompat.ProgressStyle()
-            progressStyle.addProgressSegment(
-                NotificationCompat.ProgressStyle.Segment(30 * 60 * 1000).setColor(Color.GREEN)
-            )
-            progressStyle.addProgressSegment(
-                NotificationCompat.ProgressStyle.Segment(10 * 60 * 1000).setColor(Color.YELLOW)
-            )
-            progressStyle.setProgress(15 * 60 * 1000)
-            builder.setStyle(progressStyle)
+            val nigga = "a"
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        // Start Foreground
-        if (Build.VERSION.SDK_INT >= 29) { // And definitely for 14+ specific types
-            // For Android 14+, we need to declare the type in manifest and pass it here
-            // We use 'specialUse' as per Tomato reference if SDK 34+
-            // Using a generic fallback for compile safety if variables missing
+        if (Build.VERSION.SDK_INT >= 29) {
             try {
-               // ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE might be available if compiling against 36
-               // If not, we pass the int value if we can find it, or just use 0/default if older.
-               // Actually, let's try to access the field or just use a standard type that works universally like MEDIA_PLAYBACK or DATA_SYNC for test
-               // But Tomato uses specialUse.
-               // check for api 34
-               if (Build.VERSION.SDK_INT >= 34) {
-                   // 32 = FOREGROUND_SERVICE_TYPE_SPECIAL_USE (approx, need to check constant)
-                   // Actually, if we compile against 36, we can access ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                   startForeground(NOTIFICATION_ID, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+               if (Build.VERSION.SDK_INT >= 36) {
+                   startForeground(notificationId, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
                } else {
-                   startForeground(NOTIFICATION_ID, builder.build())
+                   startForeground(notificationId, builder.build())
                }
             } catch (e: Exception) {
                // Fallback
-               startForeground(NOTIFICATION_ID, builder.build())
+               startForeground(notificationId, builder.build())
             }
         } else {
-            startForeground(NOTIFICATION_ID, builder.build())
+            startForeground(notificationId, builder.build())
         }
     }
 

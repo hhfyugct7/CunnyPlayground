@@ -41,6 +41,39 @@
                 android:text="00:42 • High Quality" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- ID Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Notification ID (Integer)">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="1001" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Icon Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Select Icon:"
+            android:layout_marginTop="16dp"
+            android:textStyle="bold"/>
+            
+        <RadioGroup
+            android:id="@+id/rgIcon"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <RadioButton android:id="@+id/rbIconDefault" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="App" android:checked="true"/>
+            <RadioButton android:id="@+id/rbIconTimer" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Timer"/>
+            <RadioButton android:id="@+id/rbIconCall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Call"/>
+            <RadioButton android:id="@+id/rbIconAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Alert"/>
+        </RadioGroup>
+
         <!-- Toggles -->
         <CheckBox
             android:id="@+id/cbOngoing"
@@ -76,9 +109,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-            <RadioButton android:id="@+id/rbStandard" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Standard"/>
-            <RadioButton android:id="@+id/rbCall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CallStyle" android:checked="true"/>
-            <RadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle"/>
+            <RadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle (Live Update)" android:checked="true"/>
         </RadioGroup>
 
         <!-- Color Selection -->
