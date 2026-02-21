@@ -39,7 +39,6 @@ class AppPickerActivity : AppCompatActivity() {
     private fun loadApps() {
         val pm = packageManager
         val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            .filter { (it.flags and ApplicationInfo.FLAG_SYSTEM) == 0 } // Just user apps for now
             .map { AppInfo(it.loadLabel(pm).toString(), it.packageName, it.loadIcon(pm)) }
             .sortedBy { it.name.lowercase() }
 
