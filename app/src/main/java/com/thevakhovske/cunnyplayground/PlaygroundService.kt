@@ -63,6 +63,7 @@ class PlaygroundService : Service() {
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
+        val statusChipText = intent.getStringExtra("status_chip_text")
         
         activeIds.add(notificationId)
         createNotificationChannel()
@@ -84,6 +85,15 @@ class PlaygroundService : Service() {
                 method.invoke(builder, true)
             } catch (e: Exception) {
                 builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
+            }
+        }
+
+        if (!statusChipText.isNullOrEmpty()) {
+            try {
+                val method = builder.javaClass.getMethod("setShortCriticalText", String::class.java)
+                method.invoke(builder, statusChipText)
+            } catch (e: Exception) {
+                // Fail silently if API not available
             }
         }
 

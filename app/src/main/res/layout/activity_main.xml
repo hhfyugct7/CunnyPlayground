@@ -41,6 +41,18 @@
                 android:text="00:42 • High Quality" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Status Chip Text">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etStatusChipText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="00:42" />
+        </com.google.android.material.textfield.TextInputLayout>
+
         <!-- Icon Selection -->
         <TextView
             android:layout_width="wrap_content"

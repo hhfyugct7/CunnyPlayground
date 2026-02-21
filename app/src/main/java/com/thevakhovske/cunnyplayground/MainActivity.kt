@@ -27,6 +27,7 @@ data class NotificationInfo(
     var text: String,
     var iconRes: Int,
     var isPromoted: Boolean,
+    var statusChipText: String?,
     var timestamp: Long = System.currentTimeMillis()
 )
 
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etTitle: EditText
     private lateinit var etText: EditText
+    private lateinit var etStatusChipText: EditText
     private lateinit var cbOngoing: CheckBox
     private lateinit var cbPromoted: CheckBox
     private lateinit var cbChronometer: CheckBox
@@ -74,6 +76,7 @@ class MainActivity : AppCompatActivity() {
     private fun initViews() {
         etTitle = findViewById(R.id.etTitle)
         etText = findViewById(R.id.etText)
+        etStatusChipText = findViewById(R.id.etStatusChipText)
         cbOngoing = findViewById(R.id.cbOngoing)
         cbPromoted = findViewById(R.id.cbPromoted)
         cbChronometer = findViewById(R.id.cbChronometer)
@@ -127,6 +130,7 @@ class MainActivity : AppCompatActivity() {
                     editingId = notification.id
                     etTitle.setText(notification.title)
                     etText.setText(notification.text)
+                    etStatusChipText.setText(notification.statusChipText ?: "")
                     cbPromoted.isChecked = notification.isPromoted
                     // Could also set icon/style radio groups if tracked
                     Toast.makeText(this, "Editing ID: ${notification.id}", Toast.LENGTH_SHORT).show()
@@ -186,6 +190,7 @@ class MainActivity : AppCompatActivity() {
 
         val title = etTitle.text.toString()
         val text = etText.text.toString() + (if (idToUpdate != null) " (Updated)" else "")
+        val statusChipText = etStatusChipText.text.toString()
         
         val notificationId = idToUpdate ?: ++lastId
         
@@ -199,10 +204,16 @@ class MainActivity : AppCompatActivity() {
         // Update local list
         val existingIndex = notifications.indexOfFirst { it.id == notificationId }
         if (existingIndex != -1) {
-            notifications[existingIndex] = notifications[existingIndex].copy(title = title, text = text, iconRes = iconRes, isPromoted = cbPromoted.isChecked)
+            notifications[existingIndex] = notifications[existingIndex].copy(
+                title = title, 
+                text = text, 
+                iconRes = iconRes, 
+                isPromoted = cbPromoted.isChecked,
+                statusChipText = statusChipText
+            )
             adapter.notifyItemChanged(existingIndex)
         } else {
-            notifications.add(NotificationInfo(notificationId, title, text, iconRes, cbPromoted.isChecked))
+            notifications.add(NotificationInfo(notificationId, title, text, iconRes, cbPromoted.isChecked, statusChipText))
             adapter.notifyItemInserted(notifications.size - 1)
         }
 
@@ -210,6 +221,7 @@ class MainActivity : AppCompatActivity() {
             action = PlaygroundService.ACTION_START
             putExtra("title", title)
             putExtra("text", text)
+            putExtra("status_chip_text", statusChipText)
             putExtra("id", notificationId)
             putExtra("icon_res", iconRes)
             putExtra("is_promoted", cbPromoted.isChecked)
@@ -243,7 +255,7 @@ class MainActivity : AppCompatActivity() {
             val item = items[position]
             holder.ivIcon.setImageResource(item.iconRes)
             holder.tvTitle.text = item.title
-            holder.tvInfo.text = "ID: ${item.id} • ${if (item.isPromoted) "Promoted" else "Standard"}"
+            holder.tvInfo.text = "ID: ${item.id} • ${if (item.isPromoted) "Promoted" else "Standard"}${if (!item.statusChipText.isNullOrEmpty()) " • Chip: ${item.statusChipText}" else ""}"
             holder.btnMenu.setOnClickListener { onMenuClick(it, item) }
         }
 
