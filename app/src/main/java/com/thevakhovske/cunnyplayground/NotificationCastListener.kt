@@ -46,7 +46,7 @@ class NotificationCastListener : NotificationListenerService() {
             action = PlaygroundService.ACTION_START
             putExtra("title", "$title")
             putExtra("text", text)
-            putExtra("status_chip_text", text.take(10)) 
+            putExtra("status_chip_text", text) 
             putExtra("id", (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000) // Unique consistent ID
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {
@@ -59,7 +59,16 @@ class NotificationCastListener : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        // Optional: Cancel the cast notification if the original is removed?
-        // For simplicity, we'll just let them expire or be manually cleared.
+        // Calculate the same unique ID used in onNotificationPosted
+        val castId = (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000
+        
+        Log.d("NotificationCast", "Removing cast notification for ${sbn.packageName} (ID: $castId)")
+
+        // Send cancel action to PlaygroundService
+        val intent = Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_CANCEL
+            putExtra("id", castId)
+        }
+        startService(intent)
     }
 }
