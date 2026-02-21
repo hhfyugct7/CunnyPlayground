@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
 
 class PlaygroundService : Service() {
 
@@ -62,6 +63,9 @@ class PlaygroundService : Service() {
         val text = intent.getStringExtra("text") ?: "Live Update Active"
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
+        val iconObj = if (Build.VERSION.SDK_INT >= 23) {
+            intent.getParcelableExtra<android.graphics.drawable.Icon>("small_icon_obj")
+        } else null
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
         val statusChipText = intent.getStringExtra("status_chip_text")
         val showProgress = intent.getBooleanExtra("show_progress", true)
@@ -70,8 +74,14 @@ class PlaygroundService : Service() {
         createNotificationChannel()
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(iconRes)
-            .setContentTitle(title)
+        
+        if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+            builder.setSmallIcon(IconCompat.createFromIcon(this, iconObj))
+        } else {
+            builder.setSmallIcon(iconRes)
+        }
+
+        builder.setContentTitle(title)
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

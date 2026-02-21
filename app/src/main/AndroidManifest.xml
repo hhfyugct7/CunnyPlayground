@@ -35,6 +35,18 @@
                 android:value="Playground Live Update Service" />
         </service>
 
+        <service
+            android:name=".NotificationCastListener"
+            android:label="Cunny Notification Caster"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <activity android:name=".AppPickerActivity" />
+
     </application>
 
 </manifest>

@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AlertDialog
 
 data class NotificationInfo(
     var id: Int,
@@ -94,6 +95,52 @@ class MainActivity : AppCompatActivity() {
         adapter = NotificationAdapter(notifications, ::onNotificationMenuClick)
         rvNotifications.layoutManager = LinearLayoutManager(this)
         rvNotifications.adapter = adapter
+    }
+
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        if (item.itemId == R.id.action_settings) {
+            showExperimentalSettingsDialog()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun showExperimentalSettingsDialog() {
+        val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
+        val view = layoutInflater.inflate(R.layout.dialog_experimental, null)
+        val swCast = view.findViewById<Switch>(R.id.swCastNotifications)
+        val swUseAppIcon = view.findViewById<Switch>(R.id.swUseAppIcon)
+        val btnAppFilter = view.findViewById<Button>(R.id.btnAppFilter)
+        val btnPermission = view.findViewById<Button>(R.id.btnNotificationAccess)
+
+        swCast.isChecked = prefs.getBoolean("cast_notifications", false)
+        swCast.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("cast_notifications", isChecked).apply()
+        }
+
+        swUseAppIcon.isChecked = prefs.getBoolean("use_app_icon", false)
+        swUseAppIcon.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("use_app_icon", isChecked).apply()
+        }
+
+        btnAppFilter.setOnClickListener {
+            startActivity(Intent(this, AppPickerActivity::class.java))
+        }
+
+        btnPermission.setOnClickListener {
+            startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Experimental Features")
+            .setView(view)
+            .setPositiveButton("Close", null)
+            .show()
     }
 
     private fun setupListeners() {
