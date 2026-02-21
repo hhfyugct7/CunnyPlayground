@@ -28,6 +28,7 @@ data class NotificationInfo(
     var iconRes: Int,
     var isPromoted: Boolean,
     var statusChipText: String?,
+    var showProgress: Boolean,
     var timestamp: Long = System.currentTimeMillis()
 )
 
@@ -47,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cbPromoted: CheckBox
     private lateinit var cbChronometer: CheckBox
     private lateinit var cbColorized: CheckBox
+    private lateinit var cbShowProgress: CheckBox
     private lateinit var rgStyle: RadioGroup
     private lateinit var rgIcon: RadioGroup
     private lateinit var btnPost: Button
@@ -81,6 +83,7 @@ class MainActivity : AppCompatActivity() {
         cbPromoted = findViewById(R.id.cbPromoted)
         cbChronometer = findViewById(R.id.cbChronometer)
         cbColorized = findViewById(R.id.cbColorized)
+        cbShowProgress = findViewById(R.id.cbShowProgress)
         rgStyle = findViewById(R.id.rgStyle)
         rgIcon = findViewById(R.id.rgIcon)
         btnPost = findViewById(R.id.btnPost)
@@ -132,6 +135,7 @@ class MainActivity : AppCompatActivity() {
                     etText.setText(notification.text)
                     etStatusChipText.setText(notification.statusChipText ?: "")
                     cbPromoted.isChecked = notification.isPromoted
+                    cbShowProgress.isChecked = notification.showProgress
                     // Could also set icon/style radio groups if tracked
                     Toast.makeText(this, "Editing ID: ${notification.id}", Toast.LENGTH_SHORT).show()
                 }
@@ -209,11 +213,12 @@ class MainActivity : AppCompatActivity() {
                 text = text, 
                 iconRes = iconRes, 
                 isPromoted = cbPromoted.isChecked,
-                statusChipText = statusChipText
+                statusChipText = statusChipText,
+                showProgress = cbShowProgress.isChecked
             )
             adapter.notifyItemChanged(existingIndex)
         } else {
-            notifications.add(NotificationInfo(notificationId, title, text, iconRes, cbPromoted.isChecked, statusChipText))
+            notifications.add(NotificationInfo(notificationId, title, text, iconRes, cbPromoted.isChecked, statusChipText, cbShowProgress.isChecked))
             adapter.notifyItemInserted(notifications.size - 1)
         }
 
@@ -225,6 +230,7 @@ class MainActivity : AppCompatActivity() {
             putExtra("id", notificationId)
             putExtra("icon_res", iconRes)
             putExtra("is_promoted", cbPromoted.isChecked)
+            putExtra("show_progress", cbShowProgress.isChecked)
         }
         
         if (Build.VERSION.SDK_INT >= 26) {

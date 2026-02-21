@@ -64,6 +64,7 @@ class PlaygroundService : Service() {
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
         val statusChipText = intent.getStringExtra("status_chip_text")
+        val showProgress = intent.getBooleanExtra("show_progress", true)
         
         activeIds.add(notificationId)
         createNotificationChannel()
@@ -98,15 +99,17 @@ class PlaygroundService : Service() {
         }
 
         // Progress Style
-        try {
-            val progressStyle = NotificationCompat.ProgressStyle()
-            progressStyle.addProgressSegment(
-                NotificationCompat.ProgressStyle.Segment(30 * 60 * 1000).setColor(Color.GREEN)
-            )
-            progressStyle.setProgress(15 * 60 * 1000)
-            builder.setStyle(progressStyle)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        if (showProgress) {
+            try {
+                val progressStyle = NotificationCompat.ProgressStyle()
+                progressStyle.addProgressSegment(
+                    NotificationCompat.ProgressStyle.Segment(30 * 60 * 1000).setColor(Color.GREEN)
+                )
+                progressStyle.setProgress(15 * 60 * 1000)
+                builder.setStyle(progressStyle)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         val notification = builder.build()

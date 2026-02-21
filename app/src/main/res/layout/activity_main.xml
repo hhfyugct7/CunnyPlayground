@@ -93,6 +93,13 @@
             android:layout_height="wrap_content"
             android:text="Show Chronometer"
             android:checked="true"/>
+
+        <CheckBox
+            android:id="@+id/cbShowProgress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Show Progress Bar (ProgressStyle)"
+            android:checked="true"/>
             
         <!-- Style Selection -->
         <TextView
@@ -100,12 +107,14 @@
             android:layout_height="wrap_content"
             android:text="Notification Style:"
             android:layout_marginTop="16dp"
+            android:visibility="gone"
             android:textStyle="bold"/>
             
         <RadioGroup
             android:id="@+id/rgStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:orientation="horizontal">
             <RadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle (Live Update)" android:checked="true"/>
         </RadioGroup>
@@ -116,11 +125,13 @@
             android:layout_height="wrap_content"
             android:text="Colorized:"
             android:layout_marginTop="8dp"
+            android:visibility="gone"
             android:textStyle="bold"/>
         <CheckBox
             android:id="@+id/cbColorized"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:visibility="gone"
             android:text="Colorized Background (CallStyle default)"
             android:checked="true"/>
         
