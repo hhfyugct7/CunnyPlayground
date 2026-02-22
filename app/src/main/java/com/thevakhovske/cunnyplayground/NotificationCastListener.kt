@@ -84,6 +84,7 @@ class NotificationCastListener : NotificationListenerService() {
         val chipText = when (textSource) {
             "title" -> finalTitle
             "subtext" -> if (rawSubText.isNotEmpty()) rawSubText else finalText
+            "titletext" -> "$finalTitle • $finalText"
             else -> finalText
         }
         val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")

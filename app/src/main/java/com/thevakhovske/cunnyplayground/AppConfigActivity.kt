@@ -108,6 +108,7 @@ class AppConfigActivity : AppCompatActivity() {
         when (textSource) {
             "title" -> rgTextSource.check(R.id.rbSourceTitle)
             "subtext" -> rgTextSource.check(R.id.rbSourceSubText)
+            "titletext" -> rgTextSource.check(R.id.rbSourceTitleText)
             else -> rgTextSource.check(R.id.rbSourceText)
         }
 
@@ -144,6 +145,11 @@ class AppConfigActivity : AppCompatActivity() {
         val selectedText = when (rgTextSource.checkedRadioButtonId) {
             R.id.rbSourceTitle -> prefs.getString("${packageName}_last_title", "Title")
             R.id.rbSourceSubText -> prefs.getString("${packageName}_last_subtext", "SubText")
+            R.id.rbSourceTitleText -> {
+                val t = prefs.getString("${packageName}_last_title", "Title")
+                val txt = prefs.getString("${packageName}_last_text", "Text")
+                "$t: $txt"
+            }
             else -> prefs.getString("${packageName}_last_text", "Text")
         }
         tvPreviewText.text = selectedText
@@ -211,6 +217,7 @@ class AppConfigActivity : AppCompatActivity() {
         val selectedTextSource = when (rgTextSource.checkedRadioButtonId) {
             R.id.rbSourceTitle -> "title"
             R.id.rbSourceSubText -> "subtext"
+            R.id.rbSourceTitleText -> "titletext"
             else -> "text"
         }
         val iconSource = when {

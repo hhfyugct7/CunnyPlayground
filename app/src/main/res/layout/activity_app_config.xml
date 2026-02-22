@@ -190,6 +190,12 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Use Original SubText" />
+
+            <RadioButton
+                android:id="@+id/rbSourceTitleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Use Original Title + Text" />
         </RadioGroup>
 
         <TextView
