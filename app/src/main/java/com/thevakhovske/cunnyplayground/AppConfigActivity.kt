@@ -111,10 +111,23 @@ class AppConfigActivity : AppCompatActivity() {
             else -> rgTextSource.check(R.id.rbSourceText)
         }
 
-        val iconSource = prefs.getString("${packageName}_icon_source", "notification")
-        val rgIconSource: RadioGroup = findViewById(R.id.rgIconSource)
-        if (iconSource == "app") rgIconSource.check(R.id.rbIconApp)
-        else rgIconSource.check(R.id.rbIconNotification)
+        val currentIconSource = prefs.getString("${packageName}_icon_source", "default")
+        val rbExtracted = findViewById<RadioButton>(R.id.rbIconExtracted)
+        val hasDrawables = !prefs.getString("${packageName}_last_drawables", "").isNullOrEmpty()
+
+        if (!hasDrawables) {
+            rbExtracted.isEnabled = false
+            rbExtracted.text = rbExtracted.text.toString() + " (No icons discovered yet)"
+        }
+
+        when (currentIconSource) {
+            "app" -> findViewById<RadioButton>(R.id.rbIconApp).isChecked = true
+            "notification" -> findViewById<RadioButton>(R.id.rbIconNotification).isChecked = true
+            "extracted" -> rbExtracted.isChecked = true
+            else -> {
+                // Default: none checked, uses global toggle
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
@@ -145,11 +158,16 @@ class AppConfigActivity : AppCompatActivity() {
             R.id.rbSourceSubText -> "subtext"
             else -> "text"
         }
-        val selectedIconSource = if (rgIconSource.checkedRadioButtonId == R.id.rbIconApp) "app" else "notification"
+        val iconSource = when {
+            findViewById<RadioButton>(R.id.rbIconApp).isChecked -> "app"
+            findViewById<RadioButton>(R.id.rbIconNotification).isChecked -> "notification"
+            findViewById<RadioButton>(R.id.rbIconExtracted).isChecked -> "extracted"
+            else -> "default"
+        }
 
         prefs.edit().apply {
             putString("${packageName}_text_source", selectedTextSource)
-            putString("${packageName}_icon_source", selectedIconSource)
+            putString("${packageName}_icon_source", iconSource)
             apply()
         }
         Toast.makeText(this, "Configuration Saved", Toast.LENGTH_SHORT).show()

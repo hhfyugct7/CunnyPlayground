@@ -1,6 +1,8 @@
 package com.thevakhovske.cunnyplayground
 
+import android.app.Notification
 import android.content.Intent
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -54,9 +56,10 @@ class NotificationCastListener : NotificationListenerService() {
         // Cache raw data and full dump for the customization page
         val dump = StringBuilder()
         val drawableIds = mutableSetOf<Int>()
+        val discoveredActions = mutableListOf<android.app.Notification.Action>()
         
-        // Populate dump and collect drawables
-        val dumpText = dumpNotification(sbn, drawableIds)
+        // Populate dump and collect tech data
+        val dumpText = dumpNotification(sbn, drawableIds, discoveredActions)
 
         prefs.edit().apply {
             putString("${sbn.packageName}_last_title", finalTitle)
@@ -83,22 +86,48 @@ class NotificationCastListener : NotificationListenerService() {
             "subtext" -> if (rawSubText.isNotEmpty()) rawSubText else finalText
             else -> finalText
         }
-
         val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")
-        val globalUseAppIcon = prefs.getBoolean("use_app_icon", false)
-        
-        val shouldUseAppIcon = if (iconSource == "default") globalUseAppIcon else (iconSource == "app")
-
-        val iconToUse = if (shouldUseAppIcon && android.os.Build.VERSION.SDK_INT >= 23) {
-            try {
-                val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
-                android.graphics.drawable.Icon.createWithResource(sbn.packageName, appInfo.icon)
-            } catch (e: Exception) {
-                if (android.os.Build.VERSION.SDK_INT >= 23) sbn.notification.smallIcon else null
+        val iconToUse = when (iconSource) {
+            "app" -> {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    try {
+                        val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
+                        android.graphics.drawable.Icon.createWithResource(sbn.packageName, appInfo.icon)
+                    } catch (e: Exception) {
+                        sbn.notification.smallIcon
+                    }
+                } else null
             }
-        } else if (android.os.Build.VERSION.SDK_INT >= 23) {
-            sbn.notification.smallIcon
-        } else null
+            "notification" -> {
+                if (Build.VERSION.SDK_INT >= 23) sbn.notification.smallIcon else null
+            }
+            "extracted" -> {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    val firstExtracted = drawableIds.firstOrNull()
+                    if (firstExtracted != null) {
+                        try {
+                            android.graphics.drawable.Icon.createWithResource(sbn.packageName, firstExtracted)
+                        } catch (e: Exception) {
+                            sbn.notification.smallIcon
+                        }
+                    } else sbn.notification.smallIcon
+                } else null
+            }
+            else -> {
+                // Default logic (global toggle)
+                val globalUseAppIcon = prefs.getBoolean("use_app_icon", false)
+                if (globalUseAppIcon && Build.VERSION.SDK_INT >= 23) {
+                    try {
+                        val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
+                        android.graphics.drawable.Icon.createWithResource(sbn.packageName, appInfo.icon)
+                    } catch (e: Exception) {
+                        sbn.notification.smallIcon
+                    }
+                } else if (Build.VERSION.SDK_INT >= 23) {
+                    sbn.notification.smallIcon
+                } else null
+            }
+        }
 
         // Extract Actions
         val actions = sbn.notification.actions
@@ -133,9 +162,11 @@ class NotificationCastListener : NotificationListenerService() {
             if (iconToUse != null) {
                 putExtra("small_icon_obj", iconToUse)
             }
-            if (actionsList != null) {
-                putParcelableArrayListExtra("actions", actionsList)
-            }
+            // Combine original actions with discovered ones
+            val allActions = ArrayList<Notification.Action>()
+            sbn.notification.actions?.let { allActions.addAll(it) }
+            allActions.addAll(discoveredActions)
+            putParcelableArrayListExtra("actions", allActions)
             if (hasProgress) {
                 putExtra("progress", progress)
                 putExtra("progress_max", progressMax)
@@ -150,7 +181,7 @@ class NotificationCastListener : NotificationListenerService() {
         startService(intent)
     }
 
-    private fun dumpNotification(sbn: StatusBarNotification, drawableIds: MutableSet<Int>): String {
+    private fun dumpNotification(sbn: StatusBarNotification, drawableIds: MutableSet<Int>, discoveredActions: MutableList<Notification.Action>): String {
         val sb = StringBuilder()
         val n = sbn.notification
         val extras = n.extras
@@ -175,19 +206,30 @@ class NotificationCastListener : NotificationListenerService() {
         }
 
         sb.append("\n[REMOTEVIEWS DEEP INSPECTION]\n")
-        exhaustiveDumpRemoteViews(n.contentView, "contentView", res, sb, drawableIds)
-        exhaustiveDumpRemoteViews(n.bigContentView, "bigContentView", res, sb, drawableIds)
-        exhaustiveDumpRemoteViews(n.headsUpContentView, "headsUpContentView", res, sb, drawableIds)
+        exhaustiveDumpRemoteViews(n.contentView, "contentView", res, sb, drawableIds, discoveredActions)
+        exhaustiveDumpRemoteViews(n.bigContentView, "bigContentView", res, sb, drawableIds, discoveredActions)
+        exhaustiveDumpRemoteViews(n.headsUpContentView, "headsUpContentView", res, sb, drawableIds, discoveredActions)
 
         return sb.toString()
     }
 
-    private fun exhaustiveDumpRemoteViews(rv: android.widget.RemoteViews?, label: String, res: android.content.res.Resources?, sb: StringBuilder, drawableIds: MutableSet<Int>) {
+    private fun exhaustiveDumpRemoteViews(
+        rv: android.widget.RemoteViews?, 
+        label: String, 
+        res: android.content.res.Resources?, 
+        sb: StringBuilder, 
+        drawableIds: MutableSet<Int>,
+        discoveredActions: MutableList<Notification.Action>
+    ) {
         if (rv == null) {
             sb.append("$label: null\n")
             return
         }
         sb.append("\n$label Instruction List:\n")
+        
+        val viewIdToText = mutableMapOf<Int, CharSequence>()
+        val viewIdToIntent = mutableMapOf<Int, android.app.PendingIntent>()
+
         try {
             val mActionsField = rv.javaClass.getDeclaredField("mActions")
             mActionsField.isAccessible = true
@@ -197,7 +239,6 @@ class NotificationCastListener : NotificationListenerService() {
                 if (action == null) continue
                 sb.append("  [Action: ${action.javaClass.simpleName}]\n")
                 
-                // Collect all fields from this class and its superclasses
                 val allFields = mutableListOf<java.lang.reflect.Field>()
                 var currClass: Class<*>? = action.javaClass
                 while (currClass != null && currClass != Object::class.java) {
@@ -207,6 +248,7 @@ class NotificationCastListener : NotificationListenerService() {
 
                 var actionMethodName: String? = null
                 val actionFields = mutableMapOf<String, Any?>()
+                var currentViewId = -1
 
                 for (field in allFields) {
                     field.isAccessible = true
@@ -215,54 +257,94 @@ class NotificationCastListener : NotificationListenerService() {
                         val value = field.get(action)
                         actionFields[name] = value
 
-                        if (name == "methodName" || name == "mMethodName") {
-                            actionMethodName = value as? String
-                        }
+                        if (name == "methodName" || name == "mMethodName") actionMethodName = value as? String
+                        if (name == "viewId" || name == "mViewId") currentViewId = value as? Int ?: -1
 
-                        // Try to resolve ANY likely resource ID to its name
+                        // Resolve resource IDs or Dump recursive layouts
                         var displayValue = value.toString()
                         if (value is Int && value >= 0x7f000000 && res != null) {
                             val resName = try { res.getResourceEntryName(value) } catch (e: Exception) { null }
-                            displayValue = if (resName != null) {
-                                "$value ($resName)"
-                            } else {
-                                "$value (0x${Integer.toHexString(value)})"
-                            }
+                            displayValue = if (resName != null) "$value ($resName)" else "$value (0x${Integer.toHexString(value)})"
                         } else if (value is android.widget.RemoteViews) {
                             val innerSb = StringBuilder()
-                            exhaustiveDumpRemoteViews(value, "InnerRV", res, innerSb, drawableIds)
+                            exhaustiveDumpRemoteViews(value, "InnerRV", res, innerSb, drawableIds, discoveredActions)
                             displayValue = "\n" + innerSb.toString().prependIndent("      ")
                         }
-
                         sb.append("    - $name: $displayValue\n")
                     } catch (e: Exception) {
                         sb.append("    - ${field.name}: (Error: ${e.message})\n")
                     }
                 }
 
-                // Post-process fields for drawable extraction
+                if (currentViewId != -1) {
+                    val methodName = actionMethodName?.lowercase() ?: ""
+                    
+                    // 1. Capture Text labels
+                    if (methodName == "settext") {
+                        val textValue = actionFields["value"] ?: actionFields["mValue"]
+                        if (textValue is CharSequence) viewIdToText[currentViewId] = textValue
+                    }
+                    
+                    // 2. Scan for ANY PendingIntent in this action (Handles SetOnClickPendingIntent, SetOnClickResponse, etc)
+                    val discoveredPi = findPendingIntent(action)
+                    if (discoveredPi != null) {
+                        viewIdToIntent[currentViewId] = discoveredPi
+                    }
+                }
+
+                // Process drawables
                 if (res != null) {
                     for ((name, value) in actionFields) {
                         if (value is Int && value > 0) {
                             val normalizedName = name.removePrefix("m").lowercase()
-                            val isIdField = normalizedName == "resid" || normalizedName == "value"
-                            
-                            if (isIdField) {
-                                val isKnownDrawableMethod = actionMethodName?.lowercase()?.let { 
-                                    it.contains("icon") || it.contains("image") || it.contains("drawable") 
-                                } ?: false
-                                
-                                if (isKnownDrawableMethod || normalizedName == "resid") {
-                                    drawableIds.add(value)
-                                }
+                            if (normalizedName == "resid" || normalizedName == "value") {
+                                val isDrawable = actionMethodName?.lowercase()?.let { it.contains("icon") || it.contains("image") || it.contains("drawable") } ?: false
+                                if (isDrawable || normalizedName == "resid") drawableIds.add(value)
                             }
                         }
                     }
                 }
             }
+            
+            // Finalize Discovered Actions: Pair Intent with the nearest Text
+            for ((vid, intent) in viewIdToIntent) {
+                val titleString = viewIdToText[vid] ?: "Action"
+                Log.d("NotificationCast", "Found interactive button in RemoteViews: $titleString")
+                val action = if (Build.VERSION.SDK_INT >= 23) {
+                    Notification.Action.Builder(null, titleString, intent).build()
+                } else {
+                    @Suppress("DEPRECATION")
+                    Notification.Action(0, titleString, intent)
+                }
+                discoveredActions.add(action)
+            }
+
         } catch (e: Exception) {
             sb.append("  - (Dump failed: ${e.message})\n")
         }
+    }
+
+    private fun findPendingIntent(obj: Any?, depth: Int = 0): android.app.PendingIntent? {
+        if (obj == null || depth > 2) return null
+        if (obj is android.app.PendingIntent) return obj
+        
+        try {
+            var currClass: Class<*>? = obj.javaClass
+            while (currClass != null && currClass != Object::class.java) {
+                val fields = currClass.declaredFields
+                for (f in fields) {
+                    f.isAccessible = true
+                    val value = f.get(obj)
+                    if (value is android.app.PendingIntent) return value
+                    if (value != null && !value.javaClass.isPrimitive && value !is String && value !is Number) {
+                        val found = findPendingIntent(value, depth + 1)
+                        if (found != null) return found
+                    }
+                }
+                currClass = currClass.superclass
+            }
+        } catch (e: Exception) {}
+        return null
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
