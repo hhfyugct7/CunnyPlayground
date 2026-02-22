@@ -20,182 +20,314 @@
         app:title="Live Updates Playground"
         app:titleTextColor="@android:color/white" />
 
-    <ScrollView
-        android:id="@+id/rootScrollMain"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="16dp">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
-        <LinearLayout
+        <ScrollView
+            android:id="@+id/rootScrollMain"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:padding="16dp"
+            android:visibility="visible">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Notification Builder"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"/>
+                
+            <!-- Inputs -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Content Title">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Ongoing Call" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Content Text">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="00:42 • High Quality" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Status Chip Text">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etStatusChipText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="00:42" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Icon Selection -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Notification Builder"
-                android:textSize="20sp"
+                android:text="Select Icon:"
+                android:layout_marginTop="16dp"
+                android:textStyle="bold"/>
+                
+            <RadioGroup
+                android:id="@+id/rgIcon"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <RadioButton android:id="@+id/rbIconDefault" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="App" android:checked="true"/>
+                <RadioButton android:id="@+id/rbIconTimer" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Timer"/>
+                <RadioButton android:id="@+id/rbIconCall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Call"/>
+                <RadioButton android:id="@+id/rbIconAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Alert"/>
+            </RadioGroup>
+
+            <!-- Toggles -->
+            <CheckBox
+                android:id="@+id/cbOngoing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ongoing Activity (SetOngoing=true)"
+                android:checked="true"/>
+                
+            <CheckBox
+                android:id="@+id/cbPromoted"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Promoted (Live Update Chip)"
+                android:checked="true"/>
+
+            <CheckBox
+                android:id="@+id/cbChronometer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Show Chronometer"
+                android:checked="true"/>
+
+            <CheckBox
+                android:id="@+id/cbShowProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Show Progress Bar (ProgressStyle)"
+                android:checked="true"/>
+                
+            <!-- Style Selection -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Notification Style:"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                android:textStyle="bold"/>
+                
+            <RadioGroup
+                android:id="@+id/rgStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:orientation="horizontal">
+                <RadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle (Live Update)" android:checked="true"/>
+            </RadioGroup>
+
+            <!-- Color Selection -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Colorized:"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:textStyle="bold"/>
+            <CheckBox
+                android:id="@+id/cbColorized"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:text="Colorized Background (CallStyle default)"
+                android:checked="true"/>
+            
+            <!-- Actions -->
+            <Button
+                android:id="@+id/btnPost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Post Notification"
+                android:layout_marginTop="24dp"/>
+                
+            <Button
+                android:id="@+id/btnUpdate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Update Last Posted"
+                android:layout_marginTop="8dp"/>
+                
+             <Button
+                android:id="@+id/btnCancel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Cancel All"
+                android:layout_marginTop="8dp"
+                android:backgroundTint="#FF0000"/>
+
+            <!-- Active Notifications List -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Active Notifications"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
                 android:textStyle="bold"
-                android:layout_marginBottom="16dp"/>
-            
-        <!-- Inputs -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Content Title">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etTitle"
+                android:textSize="18sp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvNotifications"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Ongoing Call" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:nestedScrollingEnabled="false" />
 
-        <com.google.android.material.textfield.TextInputLayout
+            </LinearLayout>
+        </ScrollView>
+
+        <ScrollView
+            android:id="@+id/rootScrollRecaster"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="Content Text">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etText"
+            android:layout_height="match_parent"
+            android:padding="20dp"
+            android:visibility="gone">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="00:42 • High Quality" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:orientation="vertical">
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="Status Chip Text">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etStatusChipText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="00:42" />
-        </com.google.android.material.textfield.TextInputLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Notification Re-Caster"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"/>
 
-        <!-- Icon Selection -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Select Icon:"
-            android:layout_marginTop="16dp"
-            android:textStyle="bold"/>
-            
-        <RadioGroup
-            android:id="@+id/rgIcon"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <RadioButton android:id="@+id/rbIconDefault" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="App" android:checked="true"/>
-            <RadioButton android:id="@+id/rbIconTimer" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Timer"/>
-            <RadioButton android:id="@+id/rbIconCall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Call"/>
-            <RadioButton android:id="@+id/rbIconAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Alert"/>
-        </RadioGroup>
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    android:layout_marginBottom="16dp">
+                    
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-        <!-- Toggles -->
-        <CheckBox
-            android:id="@+id/cbOngoing"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Ongoing Activity (SetOngoing=true)"
-            android:checked="true"/>
-            
-        <CheckBox
-            android:id="@+id/cbPromoted"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Promoted (Live Update Chip)"
-            android:checked="true"/>
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/swCastNotifications"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Enable Notification Casting"
+                            android:textSize="16sp" />
 
-        <CheckBox
-            android:id="@+id/cbChronometer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Show Chronometer"
-            android:checked="true"/>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Intercepts notifications from other apps and re-posts them as Dynamic Island chips."
+                            android:textSize="12sp"
+                            android:alpha="0.6"
+                            android:layout_marginTop="4dp" />
 
-        <CheckBox
-            android:id="@+id/cbShowProgress"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Show Progress Bar (ProgressStyle)"
-            android:checked="true"/>
-            
-        <!-- Style Selection -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Notification Style:"
-            android:layout_marginTop="16dp"
-            android:visibility="gone"
-            android:textStyle="bold"/>
-            
-        <RadioGroup
-            android:id="@+id/rgStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:orientation="horizontal">
-            <RadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle (Live Update)" android:checked="true"/>
-        </RadioGroup>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-        <!-- Color Selection -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Colorized:"
-            android:layout_marginTop="8dp"
-            android:visibility="gone"
-            android:textStyle="bold"/>
-        <CheckBox
-            android:id="@+id/cbColorized"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:text="Colorized Background (CallStyle default)"
-            android:checked="true"/>
-        
-        <!-- Actions -->
-        <Button
-            android:id="@+id/btnPost"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Post Notification"
-            android:layout_marginTop="24dp"/>
-            
-        <Button
-            android:id="@+id/btnUpdate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Update Last Posted"
-            android:layout_marginTop="8dp"/>
-            
-         <Button
-            android:id="@+id/btnCancel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Cancel All"
-            android:layout_marginTop="8dp"
-            android:backgroundTint="#FF0000"/>
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    android:layout_marginBottom="24dp">
+                    
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-        <!-- Active Notifications List -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Active Notifications"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="8dp"
-            android:textStyle="bold"
-            android:textSize="18sp"/>
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/swUseAppIcon"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Global: Use Launcher Icons"
+                            android:textSize="16sp" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvNotifications"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Use the app's home screen icon instead of the system tray status icon by default."
+                            android:textSize="12sp"
+                            android:alpha="0.6"
+                            android:layout_marginTop="4dp" />
 
-    </LinearLayout>
-</ScrollView>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <Button
+                    android:id="@+id/btnAppFilter"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Select Apps to Cast"
+                    android:layout_marginBottom="16dp"/>
+
+                <TextView
+                    android:id="@+id/tvEnabledAppsCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Apps enabled for casting (0)"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
+
+                <LinearLayout
+                    android:id="@+id/llEnabledApps"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="24dp"/>
+
+                <Button
+                    android:id="@+id/btnNotificationAccess"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Grant Notification Access"
+                    android:layout_marginBottom="24dp"/>
+
+            </LinearLayout>
+        </ScrollView>
+    </FrameLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/colorBackground"
+        app:menu="@menu/bottom_nav_menu" />
+
 </LinearLayout>

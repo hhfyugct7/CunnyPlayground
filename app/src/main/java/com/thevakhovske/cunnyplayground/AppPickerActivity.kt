@@ -97,7 +97,7 @@ class AppPickerActivity : AppCompatActivity() {
     private fun saveSelection() {
         getSharedPreferences("experimental_prefs", MODE_PRIVATE)
             .edit()
-            .putStringSet("cast_enabled_apps", selectedApps)
+            .putStringSet("cast_enabled_apps", HashSet(selectedApps))
             .apply()
     }
 
@@ -121,24 +121,18 @@ class AppPickerActivity : AppCompatActivity() {
             holder.tvPackage.text = item.packageName
             holder.cbSelected.isChecked = selectedApps.contains(item.packageName)
 
-            holder.itemView.setOnClickListener {
-                val intent = android.content.Intent(this@AppPickerActivity, AppConfigActivity::class.java).apply {
-                    putExtra("package_name", item.packageName)
-                }
-                startActivity(intent)
-            }
-
-            holder.cbSelected.setOnClickListener {
+            val toggleAction = {
                 if (selectedApps.contains(item.packageName)) {
                     selectedApps.remove(item.packageName)
                 } else {
                     selectedApps.add(item.packageName)
                 }
                 saveSelection()
-                // Use the item's package name for notification instead of position-based refresh
-                // to avoid issues when list is filtered
                 notifyItemChanged(position)
             }
+
+            holder.itemView.setOnClickListener { toggleAction() }
+            holder.cbSelected.setOnClickListener { toggleAction() }
         }
 
         override fun getItemCount() = items.size

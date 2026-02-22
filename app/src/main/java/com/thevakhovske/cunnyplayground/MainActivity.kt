@@ -33,6 +33,12 @@ data class NotificationInfo(
     var timestamp: Long = System.currentTimeMillis()
 )
 
+data class EnabledApp(
+    val name: String,
+    val packageName: String,
+    val icon: android.graphics.drawable.Drawable
+)
+
 class MainActivity : AppCompatActivity() {
 
     companion object {
@@ -56,8 +62,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnUpdate: Button
     private lateinit var btnCancel: Button
     private lateinit var rvNotifications: RecyclerView
+    private lateinit var llEnabledApps: LinearLayout
+    private lateinit var tvEnabledAppsCount: TextView
 
     private val notifications = mutableListOf<NotificationInfo>()
+    private val enabledAppsList = mutableListOf<EnabledApp>()
     private lateinit var adapter: NotificationAdapter
     private var lastId = 1000
     private var editingId: Int? = null
@@ -84,55 +93,88 @@ class MainActivity : AppCompatActivity() {
         val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbarMain)
         setSupportActionBar(toolbar)
 
+        val bottomNav = findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNavigation)
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_playground -> {
+                    findViewById<View>(R.id.rootScrollMain).visibility = View.VISIBLE
+                    findViewById<View>(R.id.rootScrollRecaster).visibility = View.GONE
+                    toolbar.title = "Live Updates Playground"
+                    true
+                }
+                R.id.nav_recaster -> {
+                    findViewById<View>(R.id.rootScrollMain).visibility = View.GONE
+                    findViewById<View>(R.id.rootScrollRecaster).visibility = View.VISIBLE
+                    toolbar.title = "Notification Re-Caster"
+                    true
+                }
+                else -> false
+            }
+        }
+
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
 
         initViews()
+        setupRecasterUI()
         setupListeners()
+        loadEnabledApps()
         checkPermissions()
     }
 
-    private fun initViews() {
-        etTitle = findViewById(R.id.etTitle)
-        etText = findViewById(R.id.etText)
-        etStatusChipText = findViewById(R.id.etStatusChipText)
-        cbOngoing = findViewById(R.id.cbOngoing)
-        cbPromoted = findViewById(R.id.cbPromoted)
-        cbChronometer = findViewById(R.id.cbChronometer)
-        cbColorized = findViewById(R.id.cbColorized)
-        cbShowProgress = findViewById(R.id.cbShowProgress)
-        rgStyle = findViewById(R.id.rgStyle)
-        rgIcon = findViewById(R.id.rgIcon)
-        btnPost = findViewById(R.id.btnPost)
-        btnUpdate = findViewById(R.id.btnUpdate)
-        btnCancel = findViewById(R.id.btnCancel)
-        rvNotifications = findViewById(R.id.rvNotifications)
-
-        adapter = NotificationAdapter(notifications, ::onNotificationMenuClick)
-        rvNotifications.layoutManager = LinearLayoutManager(this)
-        rvNotifications.adapter = adapter
+    override fun onResume() {
+        super.onResume()
+        loadEnabledApps()
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
-        if (item.itemId == R.id.action_settings) {
-            showExperimentalSettingsDialog()
-            return true
-        }
-        return super.onOptionsItemSelected(item)
-    }
-
-    private fun showExperimentalSettingsDialog() {
+    private fun loadEnabledApps() {
         val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
-        val view = layoutInflater.inflate(R.layout.dialog_experimental, null)
-        val swCast = view.findViewById<Switch>(R.id.swCastNotifications)
-        val swUseAppIcon = view.findViewById<Switch>(R.id.swUseAppIcon)
-        val btnAppFilter = view.findViewById<Button>(R.id.btnAppFilter)
-        val btnPermission = view.findViewById<Button>(R.id.btnNotificationAccess)
+        val selectedPackages = prefs.getStringSet("cast_enabled_apps", emptySet()) ?: emptySet()
+        
+        val pm = packageManager
+        val newList = selectedPackages.mapNotNull { pkg ->
+            try {
+                val appInfo = pm.getApplicationInfo(pkg, 0)
+                EnabledApp(
+                    name = appInfo.loadLabel(pm).toString(),
+                    packageName = pkg,
+                    icon = appInfo.loadIcon(pm)
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }.sortedBy { it.name.lowercase() }
+
+        enabledAppsList.clear()
+        enabledAppsList.addAll(newList)
+        
+        if (::tvEnabledAppsCount.isInitialized) {
+            tvEnabledAppsCount.text = "Apps enabled for casting (${enabledAppsList.size})"
+        }
+
+        if (::llEnabledApps.isInitialized) {
+            llEnabledApps.removeAllViews()
+            enabledAppsList.forEach { app ->
+                val itemView = layoutInflater.inflate(R.layout.item_enabled_app, llEnabledApps, false)
+                itemView.findViewById<ImageView>(R.id.ivEnabledAppIcon).setImageDrawable(app.icon)
+                itemView.findViewById<TextView>(R.id.tvEnabledAppName).text = app.name
+                itemView.findViewById<Button>(R.id.btnAppEnabledConfig).setOnClickListener {
+                    val intent = Intent(this, AppConfigActivity::class.java).apply {
+                        putExtra("package_name", app.packageName)
+                    }
+                    startActivity(intent)
+                }
+                llEnabledApps.addView(itemView)
+            }
+        }
+    }
+
+    private fun setupRecasterUI() {
+        val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
+        val swCast = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swCastNotifications)
+        val swUseAppIcon = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swUseAppIcon)
+        val btnAppFilter = findViewById<Button>(R.id.btnAppFilter)
+        val btnPermission = findViewById<Button>(R.id.btnNotificationAccess)
 
         swCast.isChecked = prefs.getBoolean("cast_notifications", false)
         swCast.setOnCheckedChangeListener { _, isChecked ->
@@ -151,13 +193,42 @@ class MainActivity : AppCompatActivity() {
         btnPermission.setOnClickListener {
             startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
         }
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Experimental Features")
-            .setView(view)
-            .setPositiveButton("Close", null)
-            .show()
     }
+
+    private fun initViews() {
+        etTitle = findViewById(R.id.etTitle)
+        etText = findViewById(R.id.etText)
+        etStatusChipText = findViewById(R.id.etStatusChipText)
+        cbOngoing = findViewById(R.id.cbOngoing)
+        cbPromoted = findViewById(R.id.cbPromoted)
+        cbChronometer = findViewById(R.id.cbChronometer)
+        cbColorized = findViewById(R.id.cbColorized)
+        cbShowProgress = findViewById(R.id.cbShowProgress)
+        rgStyle = findViewById(R.id.rgStyle)
+        rgIcon = findViewById(R.id.rgIcon)
+        btnPost = findViewById(R.id.btnPost)
+        btnUpdate = findViewById(R.id.btnUpdate)
+        btnCancel = findViewById(R.id.btnCancel)
+        rvNotifications = findViewById(R.id.rvNotifications)
+        llEnabledApps = findViewById(R.id.llEnabledApps)
+        tvEnabledAppsCount = findViewById(R.id.tvEnabledAppsCount)
+
+        adapter = NotificationAdapter(notifications, ::onNotificationMenuClick)
+        rvNotifications.layoutManager = LinearLayoutManager(this)
+        rvNotifications.adapter = adapter
+    }
+
+
+
+    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        return super.onOptionsItemSelected(item)
+    }
+
+
 
     private fun setupListeners() {
         btnPost.setOnClickListener {
