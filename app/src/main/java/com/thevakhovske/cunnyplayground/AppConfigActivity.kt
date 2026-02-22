@@ -128,6 +128,61 @@ class AppConfigActivity : AppCompatActivity() {
                 // Default: none checked, uses global toggle
             }
         }
+
+        updatePreview()
+
+        rgTextSource.setOnCheckedChangeListener { _, _ -> updatePreview() }
+        findViewById<RadioGroup>(R.id.rgIconSource).setOnCheckedChangeListener { _, _ -> updatePreview() }
+    }
+
+    private fun updatePreview() {
+        val tvPreviewText: TextView = findViewById(R.id.tvPreviewText)
+        val ivPreviewIcon: ImageView = findViewById(R.id.ivPreviewIcon)
+
+        // Update Text
+        val rgTextSource = findViewById<RadioGroup>(R.id.rgTextSource)
+        val selectedText = when (rgTextSource.checkedRadioButtonId) {
+            R.id.rbSourceTitle -> prefs.getString("${packageName}_last_title", "Title")
+            R.id.rbSourceSubText -> prefs.getString("${packageName}_last_subtext", "SubText")
+            else -> prefs.getString("${packageName}_last_text", "Text")
+        }
+        tvPreviewText.text = selectedText
+
+        // Update Icon
+        val checkedIconId = findViewById<RadioGroup>(R.id.rgIconSource).checkedRadioButtonId
+        try {
+            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+            when (checkedIconId) {
+                R.id.rbIconApp -> {
+                    ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
+                }
+                R.id.rbIconNotification -> {
+                    // Try to load the "small icon" from the pacakge if possible, else fallback to app icon
+                    ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
+                }
+                R.id.rbIconExtracted -> {
+                    val drawablesStr = prefs.getString("${packageName}_last_drawables", "")
+                    val firstId = drawablesStr?.split(",")?.firstOrNull()?.trim()?.toIntOrNull()
+                    if (firstId != null) {
+                        try {
+                            val sourceContext = createPackageContext(packageName, 0)
+                            val drawable = androidx.core.content.res.ResourcesCompat.getDrawable(sourceContext.resources, firstId, sourceContext.theme)
+                            ivPreviewIcon.setImageDrawable(drawable)
+                        } catch (e: Exception) {
+                            ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
+                        }
+                    } else {
+                        ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
+                    }
+                }
+                else -> {
+                    // Default case
+                    ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
+                }
+            }
+        } catch (e: Exception) {
+            ivPreviewIcon.setImageDrawable(null)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
