@@ -66,10 +66,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Enable Edge-to-Edge
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        
         setContentView(R.layout.activity_main)
 
         // Handle Window Insets
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { v, insets ->
+        val rootLayout = findViewById<View>(R.id.rootScrollMain)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { v, insets ->
             val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
@@ -289,6 +295,10 @@ class MainActivity : AppCompatActivity() {
             putExtra("icon_res", iconRes)
             putExtra("is_promoted", cbPromoted.isChecked)
             putExtra("show_progress", cbShowProgress.isChecked)
+            if (cbShowProgress.isChecked) {
+                putExtra("progress", 50)
+                putExtra("progress_max", 100)
+            }
             putExtra("when", notification.timestamp)
             putExtra("source_app", "Manual")
         }

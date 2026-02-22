@@ -96,6 +96,30 @@ class PlaygroundService : Service() {
             builder.setSubText(sourceApp)
         }
 
+        // Apply Actions
+        val actions = intent.getParcelableArrayListExtra<Notification.Action>("actions")
+        actions?.forEach { action ->
+            val icon = if (Build.VERSION.SDK_INT >= 23) {
+                action.getIcon()?.let { IconCompat.createFromIcon(this, it) }
+            } else null
+            
+            val builderAction = NotificationCompat.Action.Builder(
+                icon,
+                action.title,
+                action.actionIntent
+            ).build()
+            builder.addAction(builderAction)
+        }
+
+        // Apply Progress
+        val progress = intent.getIntExtra("progress", 0)
+        val progressMax = intent.getIntExtra("progress_max", 0)
+        val isIndeterminate = intent.getBooleanExtra("progress_indeterminate", false)
+        
+        if (showProgress) {
+            builder.setProgress(progressMax, progress, isIndeterminate)
+        }
+
         if (isPromoted) {
             try {
                 val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
@@ -114,8 +138,23 @@ class PlaygroundService : Service() {
             }
         }
 
-        // Progress Style
-        if (showProgress) {
+        // Progress Style (Status Chip)
+        if (showProgress && isPromoted && progressMax > 0) {
+            try {
+                val progressStyle = NotificationCompat.ProgressStyle()
+                val totalDuration = 100000 // arbitrary base for percentage (Int)
+                val currentProgress = (progress.toDouble() / progressMax * totalDuration).toInt()
+                
+                progressStyle.addProgressSegment(
+                    NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(Color.GREEN)
+                )
+                progressStyle.setProgress(currentProgress)
+                builder.setStyle(progressStyle)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else if (showProgress) {
+            // Standard progress only
             try {
                 val progressStyle = NotificationCompat.ProgressStyle()
                 builder.setStyle(progressStyle)

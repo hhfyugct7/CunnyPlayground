@@ -24,8 +24,16 @@ class NotificationCastListener : NotificationListenerService() {
         }
 
         val extras = sbn.notification.extras
-        val rawTitle = extras.getCharSequence("android.title")?.toString() ?: "No Title"
-        val rawText = extras.getCharSequence("android.text")?.toString() ?: sbn.packageName
+        val titleExtra = extras.getCharSequence("android.title")
+        val textExtra = extras.getCharSequence("android.text")
+
+        if (titleExtra.isNullOrBlank() && textExtra.isNullOrBlank()) {
+            Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (no title/text)")
+            return
+        }
+
+        val rawTitle = titleExtra?.toString() ?: "No Title"
+        val rawText = textExtra?.toString() ?: sbn.packageName
 
         // Cache raw data for the customization page
         prefs.edit().apply {
@@ -63,6 +71,16 @@ class NotificationCastListener : NotificationListenerService() {
             sbn.notification.smallIcon
         } else null
 
+        // Extract Actions
+        val actions = sbn.notification.actions
+        val actionsList = if (actions != null) ArrayList(actions.toList()) else null
+
+        // Extract Progress
+        val progress = extras.getInt("android.progress", 0)
+        val progressMax = extras.getInt("android.progressMax", 0)
+        val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false)
+        val hasProgress = progressMax > 0 || isIndeterminate
+
         // Forward to PlaygroundService
         val intent = Intent(this, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
@@ -75,8 +93,18 @@ class NotificationCastListener : NotificationListenerService() {
             if (iconToUse != null) {
                 putExtra("small_icon_obj", iconToUse)
             }
+            if (actionsList != null) {
+                putParcelableArrayListExtra("actions", actionsList)
+            }
+            if (hasProgress) {
+                putExtra("progress", progress)
+                putExtra("progress_max", progressMax)
+                putExtra("progress_indeterminate", isIndeterminate)
+                putExtra("show_progress", true)
+            } else {
+                putExtra("show_progress", false)
+            }
             putExtra("is_promoted", true)
-            putExtra("show_progress", false)
             putExtra("when", sbn.notification.`when`)
         }
         startService(intent)

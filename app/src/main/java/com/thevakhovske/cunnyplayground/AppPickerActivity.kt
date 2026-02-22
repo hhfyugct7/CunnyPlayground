@@ -19,26 +19,36 @@ import androidx.recyclerview.widget.RecyclerView
 class AppPickerActivity : AppCompatActivity() {
 
     private lateinit var rvApps: RecyclerView
+    private lateinit var searchView: androidx.appcompat.widget.SearchView
     private val selectedApps = mutableSetOf<String>()
+    
+    private var allApps = listOf<AppInfo>()
+    private var displayApps = mutableListOf<AppInfo>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_app_picker)
 
         // Handle Window Insets
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { v, insets ->
-            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        val root = findViewById<View>(R.id.rootAppPicker)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
         
-        // Dynamic layout or simple one
-        rvApps = RecyclerView(this).apply {
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            layoutManager = LinearLayoutManager(this@AppPickerActivity)
-            fitsSystemWindows = true
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        }
-        setContentView(rvApps)
+        rvApps = findViewById(R.id.rvApps)
+        rvApps.layoutManager = LinearLayoutManager(this)
+        
+        searchView = findViewById(R.id.searchApps)
+        searchView.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean = false
+            override fun onQueryTextChange(newText: String?): Boolean {
+                filterApps(newText ?: "")
+                return true
+            }
+        })
+
         supportActionBar?.title = "Select Apps to Cast"
 
         val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
@@ -49,11 +59,28 @@ class AppPickerActivity : AppCompatActivity() {
 
     private fun loadApps() {
         val pm = packageManager
-        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        allApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
             .map { AppInfo(it.loadLabel(pm).toString(), it.packageName, it.loadIcon(pm)) }
             .sortedBy { it.name.lowercase() }
+        
+        displayApps.clear()
+        displayApps.addAll(allApps)
+        rvApps.adapter = AppAdapter(displayApps)
+    }
 
-        rvApps.adapter = AppAdapter(apps)
+    private fun filterApps(query: String) {
+        val filtered = if (query.isEmpty()) {
+            allApps
+        } else {
+            allApps.filter { 
+                it.name.contains(query, ignoreCase = true) || 
+                it.packageName.contains(query, ignoreCase = true)
+            }
+        }
+        
+        displayApps.clear()
+        displayApps.addAll(filtered)
+        rvApps.adapter?.notifyDataSetChanged()
     }
 
     private fun saveSelection() {
@@ -97,6 +124,8 @@ class AppPickerActivity : AppCompatActivity() {
                     selectedApps.add(item.packageName)
                 }
                 saveSelection()
+                // Use the item's package name for notification instead of position-based refresh
+                // to avoid issues when list is filtered
                 notifyItemChanged(position)
             }
         }
