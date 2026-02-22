@@ -5,8 +5,20 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:fitsSystemWindows="true"
     android:background="?android:attr/colorBackground">
+
+    <android.view.View
+        android:id="@+id/statusBarSpacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="?attr/colorPrimaryVariant" />
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbarAppPicker"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        app:titleTextColor="@android:color/white" />
 
     <androidx.appcompat.widget.SearchView
         android:id="@+id/searchApps"

@@ -27,6 +27,11 @@ class AppPickerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Enable Edge-to-Edge
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        
         setContentView(R.layout.activity_app_picker)
 
         // Handle Window Insets
@@ -39,6 +44,12 @@ class AppPickerActivity : AppCompatActivity() {
         
         rvApps = findViewById(R.id.rvApps)
         rvApps.layoutManager = LinearLayoutManager(this)
+        
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbarAppPicker)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Select Apps to Cast"
+        toolbar.setNavigationOnClickListener { finish() }
         
         searchView = findViewById(R.id.searchApps)
         searchView.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
