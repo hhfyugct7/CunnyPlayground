@@ -87,6 +87,29 @@ class NotificationCastListener : NotificationListenerService() {
             "titletext" -> "$finalTitle • $finalText"
             else -> finalText
         }
+
+        // Apply Regex Filter
+        val regexStr = prefs.getString("${sbn.packageName}_regex_filter", "") ?: ""
+        val finalChipText = if (regexStr.isNotEmpty()) {
+            try {
+                val regex = Regex(regexStr)
+                val match = regex.find(chipText)
+                if (match != null) {
+                    if (match.groups.size > 1) {
+                        match.groupValues.drop(1).joinToString(" ")
+                    } else {
+                        match.value
+                    }
+                } else {
+                    chipText
+                }
+            } catch (e: Exception) {
+                chipText
+            }
+        } else {
+            chipText
+        }
+
         val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")
         val iconToUse = when (iconSource) {
             "app" -> {
@@ -157,7 +180,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("title", finalTitle)
             putExtra("text", finalText)
             putExtra("source_app", sourceApp)
-            putExtra("status_chip_text", chipText) 
+            putExtra("status_chip_text", finalChipText) 
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {

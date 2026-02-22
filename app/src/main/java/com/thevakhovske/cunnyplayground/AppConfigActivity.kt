@@ -134,6 +134,14 @@ class AppConfigActivity : AppCompatActivity() {
 
         rgTextSource.setOnCheckedChangeListener { _, _ -> updatePreview() }
         findViewById<RadioGroup>(R.id.rgIconSource).setOnCheckedChangeListener { _, _ -> updatePreview() }
+
+        val etRegex: EditText = findViewById(R.id.etRegexFilter)
+        etRegex.setText(prefs.getString("${packageName}_regex_filter", ""))
+        etRegex.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updatePreview() }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
     }
 
     private fun updatePreview() {
@@ -148,11 +156,35 @@ class AppConfigActivity : AppCompatActivity() {
             R.id.rbSourceTitleText -> {
                 val t = prefs.getString("${packageName}_last_title", "Title")
                 val txt = prefs.getString("${packageName}_last_text", "Text")
-                "$t: $txt"
+                "$t • $txt"
             }
             else -> prefs.getString("${packageName}_last_text", "Text")
+        } ?: ""
+
+        // Apply Regex Filter
+        val etRegex: EditText = findViewById(R.id.etRegexFilter)
+        val regexStr = etRegex.text.toString()
+        val filteredText = if (regexStr.isNotEmpty()) {
+            try {
+                val regex = Regex(regexStr)
+                val match = regex.find(selectedText)
+                if (match != null) {
+                    if (match.groups.size > 1) {
+                        match.groupValues.drop(1).joinToString(" ")
+                    } else {
+                        match.value
+                    }
+                } else {
+                    selectedText // Fallback if no match
+                }
+            } catch (e: Exception) {
+                selectedText // Invalid regex
+            }
+        } else {
+            selectedText
         }
-        tvPreviewText.text = selectedText
+
+        tvPreviewText.text = filteredText
 
         // Update Icon
         val checkedIconId = findViewById<RadioGroup>(R.id.rgIconSource).checkedRadioButtonId
@@ -227,9 +259,12 @@ class AppConfigActivity : AppCompatActivity() {
             else -> "default"
         }
 
+        val regexFilter = findViewById<EditText>(R.id.etRegexFilter).text.toString()
+
         prefs.edit().apply {
             putString("${packageName}_text_source", selectedTextSource)
             putString("${packageName}_icon_source", iconSource)
+            putString("${packageName}_regex_filter", regexFilter)
             apply()
         }
         Toast.makeText(this, "Configuration Saved", Toast.LENGTH_SHORT).show()
