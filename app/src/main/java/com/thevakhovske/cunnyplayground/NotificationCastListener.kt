@@ -6,6 +6,9 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 
 class NotificationCastListener : NotificationListenerService() {
+    
+    private val lastNotificationContent = HashMap<Int, String>()
+
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
@@ -27,18 +30,29 @@ class NotificationCastListener : NotificationListenerService() {
         val titleExtra = extras.getCharSequence("android.title")
         val textExtra = extras.getCharSequence("android.text")
 
-        if (titleExtra.isNullOrBlank() && textExtra.isNullOrBlank()) {
+        val rawTitle = titleExtra?.toString()?.trim() ?: ""
+        val rawText = textExtra?.toString()?.trim() ?: sbn.packageName
+
+        if (rawTitle.isEmpty() && rawText.isEmpty()) {
             Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (no title/text)")
             return
         }
 
-        val rawTitle = titleExtra?.toString() ?: "No Title"
-        val rawText = textExtra?.toString() ?: sbn.packageName
+        // Edge case: if title or text is exactly the package name, ignore
+        val pkg = sbn.packageName
+        if (rawTitle.equals(pkg, ignoreCase = true) || rawText.equals(pkg, ignoreCase = true)) {
+            Log.d("NotificationCast", "Skipping notification from $pkg (content matches package name)")
+            return
+        }
+
+        // Final values for casting (ensure title is never empty for the builder)
+        val finalTitle = if (rawTitle.isEmpty()) "Notification" else rawTitle
+        val finalText = rawText
 
         // Cache raw data for the customization page
         prefs.edit().apply {
-            putString("${sbn.packageName}_last_title", rawTitle)
-            putString("${sbn.packageName}_last_text", rawText)
+            putString("${sbn.packageName}_last_title", finalTitle)
+            putString("${sbn.packageName}_last_text", finalText)
             apply()
         }
 
@@ -53,7 +67,7 @@ class NotificationCastListener : NotificationListenerService() {
 
         // Read per-app customization
         val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
-        val chipText = if (textSource == "title") rawTitle else rawText
+        val chipText = if (textSource == "title") finalTitle else finalText
 
         val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")
         val globalUseAppIcon = prefs.getBoolean("use_app_icon", false)
@@ -81,14 +95,25 @@ class NotificationCastListener : NotificationListenerService() {
         val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false)
         val hasProgress = progressMax > 0 || isIndeterminate
 
+        // Unique ID for this cast
+        val castId = (pkg.hashCode() + sbn.id) % 10000 + 20000
+
+        // Deduping: Generate a key based on content that effects the UI
+        val contentKey = "T:$finalTitle|X:$finalText|C:$chipText|P:$progress/$progressMax/$isIndeterminate"
+        if (lastNotificationContent[castId] == contentKey) {
+            // Log.d("NotificationCast", "Skipping redundant update for $sourceApp ($pkg)")
+            return
+        }
+        lastNotificationContent[castId] = contentKey
+
         // Forward to PlaygroundService
         val intent = Intent(this, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
-            putExtra("title", rawTitle)
-            putExtra("text", rawText)
+            putExtra("title", finalTitle)
+            putExtra("text", finalText)
             putExtra("source_app", sourceApp)
             putExtra("status_chip_text", chipText) 
-            putExtra("id", (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000)
+            putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {
                 putExtra("small_icon_obj", iconToUse)
@@ -114,6 +139,9 @@ class NotificationCastListener : NotificationListenerService() {
         // Calculate the same unique ID used in onNotificationPosted
         val castId = (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000
         
+        // Clear deduping cache
+        lastNotificationContent.remove(castId)
+
         Log.d("NotificationCast", "Removing cast notification for ${sbn.packageName} (ID: $castId)")
 
         // Send cancel action to PlaygroundService
