@@ -66,6 +66,7 @@ class PlaygroundService : Service() {
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
             intent.getParcelableExtra<android.graphics.drawable.Icon>("small_icon_obj")
         } else null
+        val sourceApp = intent.getStringExtra("source_app")
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
         val statusChipText = intent.getStringExtra("status_chip_text")
         val showProgress = intent.getBooleanExtra("show_progress", true)
@@ -90,6 +91,10 @@ class PlaygroundService : Service() {
             .setWhen(timestamp)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSilent(true)
+
+        if (!sourceApp.isNullOrEmpty()) {
+            builder.setSubText(sourceApp)
+        }
 
         if (isPromoted) {
             try {

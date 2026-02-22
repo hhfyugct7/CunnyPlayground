@@ -290,6 +290,7 @@ class MainActivity : AppCompatActivity() {
             putExtra("is_promoted", cbPromoted.isChecked)
             putExtra("show_progress", cbShowProgress.isChecked)
             putExtra("when", notification.timestamp)
+            putExtra("source_app", "Manual")
         }
         
         if (Build.VERSION.SDK_INT >= 26) {

@@ -34,7 +34,14 @@ class NotificationCastListener : NotificationListenerService() {
             apply()
         }
 
-        Log.d("NotificationCast", "Casting notification from ${sbn.packageName}")
+        val sourceApp = try {
+            val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
+            packageManager.getApplicationLabel(appInfo).toString()
+        } catch (e: Exception) {
+            sbn.packageName
+        }
+
+        Log.d("NotificationCast", "Casting notification from $sourceApp (${sbn.packageName})")
 
         // Read per-app customization
         val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
@@ -61,6 +68,7 @@ class NotificationCastListener : NotificationListenerService() {
             action = PlaygroundService.ACTION_START
             putExtra("title", rawTitle)
             putExtra("text", rawText)
+            putExtra("source_app", sourceApp)
             putExtra("status_chip_text", chipText) 
             putExtra("id", (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000)
             putExtra("icon_res", R.drawable.ic_alert)
