@@ -24,13 +24,28 @@ class NotificationCastListener : NotificationListenerService() {
         }
 
         val extras = sbn.notification.extras
-        val title = extras.getCharSequence("android.title")?.toString() ?: "Cast Notification"
-        val text = extras.getCharSequence("android.text")?.toString() ?: sbn.packageName
+        val rawTitle = extras.getCharSequence("android.title")?.toString() ?: "No Title"
+        val rawText = extras.getCharSequence("android.text")?.toString() ?: sbn.packageName
 
-        Log.d("NotificationCast", "Casting notification from ${sbn.packageName}: $title - $text")
+        // Cache raw data for the customization page
+        prefs.edit().apply {
+            putString("${sbn.packageName}_last_title", rawTitle)
+            putString("${sbn.packageName}_last_text", rawText)
+            apply()
+        }
 
-        val useAppIcon = prefs.getBoolean("use_app_icon", false)
-        val iconToUse = if (useAppIcon && android.os.Build.VERSION.SDK_INT >= 23) {
+        Log.d("NotificationCast", "Casting notification from ${sbn.packageName}")
+
+        // Read per-app customization
+        val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
+        val chipText = if (textSource == "title") rawTitle else rawText
+
+        val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")
+        val globalUseAppIcon = prefs.getBoolean("use_app_icon", false)
+        
+        val shouldUseAppIcon = if (iconSource == "default") globalUseAppIcon else (iconSource == "app")
+
+        val iconToUse = if (shouldUseAppIcon && android.os.Build.VERSION.SDK_INT >= 23) {
             try {
                 val appInfo = packageManager.getApplicationInfo(sbn.packageName, 0)
                 android.graphics.drawable.Icon.createWithResource(sbn.packageName, appInfo.icon)
@@ -44,16 +59,17 @@ class NotificationCastListener : NotificationListenerService() {
         // Forward to PlaygroundService
         val intent = Intent(this, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
-            putExtra("title", "$title")
-            putExtra("text", text)
-            putExtra("status_chip_text", text) 
-            putExtra("id", (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000) // Unique consistent ID
+            putExtra("title", rawTitle)
+            putExtra("text", rawText)
+            putExtra("status_chip_text", chipText) 
+            putExtra("id", (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {
                 putExtra("small_icon_obj", iconToUse)
             }
             putExtra("is_promoted", true)
             putExtra("show_progress", false)
+            putExtra("when", sbn.notification.`when`)
         }
         startService(intent)
     }

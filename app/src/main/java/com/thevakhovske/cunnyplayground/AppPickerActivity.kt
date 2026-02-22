@@ -11,6 +11,8 @@ import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -21,11 +23,20 @@ class AppPickerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Handle Window Insets
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { v, insets ->
+            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
         
         // Dynamic layout or simple one
         rvApps = RecyclerView(this).apply {
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             layoutManager = LinearLayoutManager(this@AppPickerActivity)
+            fitsSystemWindows = true
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
         setContentView(rvApps)
         supportActionBar?.title = "Select Apps to Cast"
@@ -73,6 +84,13 @@ class AppPickerActivity : AppCompatActivity() {
             holder.cbSelected.isChecked = selectedApps.contains(item.packageName)
 
             holder.itemView.setOnClickListener {
+                val intent = android.content.Intent(this@AppPickerActivity, AppConfigActivity::class.java).apply {
+                    putExtra("package_name", item.packageName)
+                }
+                startActivity(intent)
+            }
+
+            holder.cbSelected.setOnClickListener {
                 if (selectedApps.contains(item.packageName)) {
                     selectedApps.remove(item.packageName)
                 } else {

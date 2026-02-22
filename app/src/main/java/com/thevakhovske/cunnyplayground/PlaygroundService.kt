@@ -69,6 +69,7 @@ class PlaygroundService : Service() {
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
         val statusChipText = intent.getStringExtra("status_chip_text")
         val showProgress = intent.getBooleanExtra("show_progress", true)
+        val timestamp = intent.getLongExtra("when", System.currentTimeMillis())
         
         activeIds.add(notificationId)
         createNotificationChannel()
@@ -86,7 +87,7 @@ class PlaygroundService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(true)
-            .setWhen(System.currentTimeMillis() + 30 * 60 * 1000)
+            .setWhen(timestamp)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSilent(true)
 
@@ -112,10 +113,6 @@ class PlaygroundService : Service() {
         if (showProgress) {
             try {
                 val progressStyle = NotificationCompat.ProgressStyle()
-                progressStyle.addProgressSegment(
-                    NotificationCompat.ProgressStyle.Segment(30 * 60 * 1000).setColor(Color.GREEN)
-                )
-                progressStyle.setProgress(15 * 60 * 1000)
                 builder.setStyle(progressStyle)
             } catch (e: Exception) {
                 e.printStackTrace()
