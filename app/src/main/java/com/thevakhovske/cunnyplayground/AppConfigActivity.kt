@@ -113,7 +113,7 @@ class AppConfigActivity : AppCompatActivity() {
         }
 
         val currentIconSource = prefs.getString("${packageName}_icon_source", "default")
-        val rbExtracted = findViewById<RadioButton>(R.id.rbIconExtracted)
+        val rbExtracted = findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted)
         val hasDrawables = !prefs.getString("${packageName}_last_drawables", "").isNullOrEmpty()
 
         if (!hasDrawables) {
@@ -122,8 +122,8 @@ class AppConfigActivity : AppCompatActivity() {
         }
 
         when (currentIconSource) {
-            "app" -> findViewById<RadioButton>(R.id.rbIconApp).isChecked = true
-            "notification" -> findViewById<RadioButton>(R.id.rbIconNotification).isChecked = true
+            "app" -> findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconApp).isChecked = true
+            "notification" -> findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked = true
             "extracted" -> rbExtracted.isChecked = true
             else -> {
                 // Default: none checked, uses global toggle
@@ -253,9 +253,9 @@ class AppConfigActivity : AppCompatActivity() {
             else -> "text"
         }
         val iconSource = when {
-            findViewById<RadioButton>(R.id.rbIconApp).isChecked -> "app"
-            findViewById<RadioButton>(R.id.rbIconNotification).isChecked -> "notification"
-            findViewById<RadioButton>(R.id.rbIconExtracted).isChecked -> "extracted"
+            findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconApp).isChecked -> "app"
+            findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked -> "notification"
+            findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted).isChecked -> "extracted"
             else -> "default"
         }
 

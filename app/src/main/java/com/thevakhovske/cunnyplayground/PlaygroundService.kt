@@ -145,9 +145,20 @@ class PlaygroundService : Service() {
                 val totalDuration = 100000 // arbitrary base for percentage (Int)
                 val currentProgress = (progress.toDouble() / progressMax * totalDuration).toInt()
                 
-                progressStyle.addProgressSegment(
-                    NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(Color.GREEN)
+                // Apply Monet dynamic color accent to progress bar and icons
+                try {
+                    val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(this)
+                    val primaryColor = com.google.android.material.color.MaterialColors.getColor(
+                        dynamicContext,
+                        com.google.android.material.R.attr.colorPrimary,
+                        androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
+                    )
+                    progressStyle.addProgressSegment(
+                    NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(primaryColor)
                 )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
                 progressStyle.setProgress(currentProgress)
                 builder.setStyle(progressStyle)
             } catch (e: Exception) {

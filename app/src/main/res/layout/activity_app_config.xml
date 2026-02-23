@@ -10,7 +10,7 @@
         android:id="@+id/statusBarSpacerConfig"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="?attr/colorPrimaryVariant" />
+        android:background="?attr/colorPrimaryContainer" />
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbarConfig"
@@ -115,7 +115,7 @@
             android:textStyle="bold"
             android:alpha="0.7" />
 
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             xmlns:app="http://schemas.android.com/apk/res-auto"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -150,7 +150,7 @@
                     android:layout_marginTop="4dp"
                     android:text="SubText: N/A" />
             </LinearLayout>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:layout_width="wrap_content"
@@ -173,25 +173,25 @@
             android:layout_marginTop="4dp"
             android:orientation="vertical">
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbSourceTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Use Original Title" />
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbSourceText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Use Original Text" />
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbSourceSubText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Use Original SubText" />
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbSourceTitleText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -237,19 +237,19 @@
             android:layout_marginTop="4dp"
             android:orientation="vertical">
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbIconApp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Use App Launcher Icon" />
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbIconNotification"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Use Notification-Specific Icon" />
 
-            <RadioButton
+            <com.google.android.material.radiobutton.MaterialRadioButton
                 android:id="@+id/rbIconExtracted"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -264,7 +264,7 @@
             android:textStyle="bold"
             android:alpha="0.7" />
 
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -280,7 +280,7 @@
                 android:fontFamily="monospace"
                 android:textSize="12sp"
                 android:textColor="?android:attr/textColorSecondary" />
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:layout_width="wrap_content"
@@ -290,7 +290,7 @@
             android:textStyle="bold"
             android:alpha="0.7" />
 
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -309,7 +309,7 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical" />
             </HorizontalScrollView>
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 </ScrollView>

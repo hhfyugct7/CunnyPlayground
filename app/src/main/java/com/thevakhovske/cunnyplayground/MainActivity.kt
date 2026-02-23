@@ -51,11 +51,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etTitle: EditText
     private lateinit var etText: EditText
     private lateinit var etStatusChipText: EditText
-    private lateinit var cbOngoing: CheckBox
-    private lateinit var cbPromoted: CheckBox
-    private lateinit var cbChronometer: CheckBox
-    private lateinit var cbColorized: CheckBox
-    private lateinit var cbShowProgress: CheckBox
+    private lateinit var cbOngoing: com.google.android.material.checkbox.MaterialCheckBox
+    private lateinit var cbPromoted: com.google.android.material.checkbox.MaterialCheckBox
+    private lateinit var cbChronometer: com.google.android.material.checkbox.MaterialCheckBox
+    private lateinit var cbColorized: com.google.android.material.checkbox.MaterialCheckBox
+    private lateinit var cbShowProgress: com.google.android.material.checkbox.MaterialCheckBox
     private lateinit var rgStyle: RadioGroup
     private lateinit var rgIcon: RadioGroup
     private lateinit var btnPost: Button
@@ -171,8 +171,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecasterUI() {
         val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
-        val swCast = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swCastNotifications)
-        val swUseAppIcon = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swUseAppIcon)
+        val swCast = findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.swCastNotifications)
+        val swUseAppIcon = findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.swUseAppIcon)
         val btnAppFilter = findViewById<Button>(R.id.btnAppFilter)
         val btnPermission = findViewById<Button>(R.id.btnNotificationAccess)
 
@@ -186,13 +186,13 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean("use_app_icon", isChecked).apply()
         }
 
-        val swShowProgressPercent = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swShowProgressPercent)
+        val swShowProgressPercent = findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.swShowProgressPercent)
         swShowProgressPercent.isChecked = prefs.getBoolean("show_progress_percentage", false)
         swShowProgressPercent.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("show_progress_percentage", isChecked).apply()
         }
 
-        val swLimitChipText = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swLimitChipText)
+        val swLimitChipText = findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.swLimitChipText)
         swLimitChipText.isChecked = prefs.getBoolean("limit_chip_7char", false)
         swLimitChipText.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("limit_chip_7char", isChecked).apply()

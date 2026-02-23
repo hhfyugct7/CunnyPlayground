@@ -106,7 +106,7 @@ class AppPickerActivity : AppCompatActivity() {
             val ivIcon: ImageView = view.findViewById(R.id.ivAppIcon)
             val tvName: TextView = view.findViewById(R.id.tvAppName)
             val tvPackage: TextView = view.findViewById(R.id.tvPackageName)
-            val cbSelected: CheckBox = view.findViewById(R.id.cbAppSelected)
+            val cbSelected: com.google.android.material.checkbox.MaterialCheckBox = view.findViewById(R.id.cbAppSelected)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

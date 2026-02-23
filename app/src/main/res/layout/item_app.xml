@@ -34,7 +34,7 @@
             android:textColor="?android:attr/textColorSecondary" />
     </LinearLayout>
 
-    <CheckBox
+    <com.google.android.material.checkbox.MaterialCheckBox
         android:id="@+id/cbAppSelected"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
