@@ -163,11 +163,26 @@ class NotificationCastListener : NotificationListenerService() {
         val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false)
         val hasProgress = progressMax > 0 || isIndeterminate
 
+        // aosp workaround
+        val limit7Char = prefs.getBoolean("limit_chip_7char", false)
+        var processedChipText = if (limit7Char && finalChipText.length > 7) {
+            finalChipText.take(7)
+        } else {
+            finalChipText
+        }
+
+        // Override shortcriticaltext with progress percentage
+        val showPercent = prefs.getBoolean("show_progress_percentage", false)
+        if (showPercent && hasProgress && progressMax > 0 && !isIndeterminate) {
+            val percent = (progress * 100) / progressMax
+            processedChipText = "$percent%"
+        }
+
         // Unique ID for this cast
         val castId = (pkg.hashCode() + sbn.id) % 10000 + 20000
 
         // Deduping: Generate a key based on content that effects the UI
-        val contentKey = "T:$finalTitle|X:$finalText|C:$chipText|P:$progress/$progressMax/$isIndeterminate"
+        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|P:$progress/$progressMax/$isIndeterminate"
         if (lastNotificationContent[castId] == contentKey) {
             // Log.d("NotificationCast", "Skipping redundant update for $sourceApp ($pkg)")
             return
@@ -180,7 +195,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("title", finalTitle)
             putExtra("text", finalText)
             putExtra("source_app", sourceApp)
-            putExtra("status_chip_text", finalChipText) 
+            putExtra("status_chip_text", processedChipText) 
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {

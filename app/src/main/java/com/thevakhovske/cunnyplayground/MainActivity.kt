@@ -186,6 +186,18 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean("use_app_icon", isChecked).apply()
         }
 
+        val swShowProgressPercent = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swShowProgressPercent)
+        swShowProgressPercent.isChecked = prefs.getBoolean("show_progress_percentage", false)
+        swShowProgressPercent.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("show_progress_percentage", isChecked).apply()
+        }
+
+        val swLimitChipText = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.swLimitChipText)
+        swLimitChipText.isChecked = prefs.getBoolean("limit_chip_7char", false)
+        swLimitChipText.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("limit_chip_7char", isChecked).apply()
+        }
+
         btnAppFilter.setOnClickListener {
             startActivity(Intent(this, AppPickerActivity::class.java))
         }

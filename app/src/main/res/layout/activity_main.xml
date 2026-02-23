@@ -261,7 +261,7 @@
                     android:layout_height="wrap_content"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="2dp"
-                    android:layout_marginBottom="24dp">
+                    android:layout_marginBottom="12dp">
                     
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -280,6 +280,68 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Use the app's home screen icon instead of the system tray status icon by default."
+                            android:textSize="12sp"
+                            android:alpha="0.6"
+                            android:layout_marginTop="4dp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    android:layout_marginBottom="12dp">
+                    
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/swShowProgressPercent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Global: Show percentage on chip"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="When a progress bar is active, show the percentage (e.g. 42%) on the status chip instead of the original text."
+                            android:textSize="12sp"
+                            android:alpha="0.6"
+                            android:layout_marginTop="4dp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="2dp"
+                    android:layout_marginBottom="24dp">
+                    
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/swLimitChipText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="AOSP only: Limit chip to 7 chars"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Hard-limit the status bar text to 7 characters for better fit on AOSP ROMs or small cutouts."
                             android:textSize="12sp"
                             android:alpha="0.6"
                             android:layout_marginTop="4dp" />
