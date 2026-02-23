@@ -163,6 +163,9 @@ class NotificationCastListener : NotificationListenerService() {
         val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false)
         val hasProgress = progressMax > 0 || isIndeterminate
 
+        // Extract Large Icon
+        val largeIcon = extras.get("android.largeIcon")
+
         // aosp workaround
         val limit7Char = prefs.getBoolean("limit_chip_7char", false)
         var processedChipText = if (limit7Char && finalChipText.length > 7) {
@@ -214,6 +217,16 @@ class NotificationCastListener : NotificationListenerService() {
             } else {
                 putExtra("show_progress", false)
             }
+            
+            // Pass Large Icon
+            if (largeIcon != null) {
+                if (Build.VERSION.SDK_INT >= 23 && largeIcon is android.graphics.drawable.Icon) {
+                    putExtra("large_icon_obj", largeIcon)
+                } else if (largeIcon is android.graphics.Bitmap) {
+                    putExtra("large_icon_bitmap", largeIcon)
+                }
+            }
+
             putExtra("is_promoted", true)
             putExtra("when", sbn.notification.`when`)
         }

@@ -72,10 +72,21 @@ class PlaygroundService : Service() {
         val showProgress = intent.getBooleanExtra("show_progress", true)
         val timestamp = intent.getLongExtra("when", System.currentTimeMillis())
         
+        val largeIconObj = if (Build.VERSION.SDK_INT >= 23) {
+            intent.getParcelableExtra<android.graphics.drawable.Icon>("large_icon_obj")
+        } else null
+        val largeIconBitmap = intent.getParcelableExtra<android.graphics.Bitmap>("large_icon_bitmap")
+
         activeIds.add(notificationId)
         createNotificationChannel()
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        
+        if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
+            builder.setLargeIcon(largeIconObj)
+        } else if (largeIconBitmap != null) {
+            builder.setLargeIcon(largeIconBitmap)
+        }
         
         if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
             builder.setSmallIcon(IconCompat.createFromIcon(this, iconObj))
