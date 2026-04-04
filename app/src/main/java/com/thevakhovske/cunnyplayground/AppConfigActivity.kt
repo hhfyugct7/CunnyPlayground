@@ -66,6 +66,14 @@ class AppConfigActivity : AppCompatActivity() {
         tvRawSubText.text = "SubText: $lastSubText"
         tvRawDump.text = lastDump
 
+        // Copy Dump Logic
+        findViewById<Button>(R.id.btnCopyDump).setOnClickListener {
+            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("Notification Dump", lastDump)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "Dump copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
         // Load Drawables
         val drawablesStr = prefs.getString("${packageName}_last_drawables", "")
         if (drawablesStr != null && drawablesStr.isNotEmpty()) {
