@@ -16,3 +16,4 @@
 local.properties
 util/liveupdate/*
 app/release/
+.kotlin

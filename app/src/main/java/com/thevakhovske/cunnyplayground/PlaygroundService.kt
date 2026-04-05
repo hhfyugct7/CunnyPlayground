@@ -161,7 +161,7 @@ class PlaygroundService : Service() {
                     val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(this)
                     val primaryColor = com.google.android.material.color.MaterialColors.getColor(
                         dynamicContext,
-                        com.google.android.material.R.attr.colorPrimary,
+                        androidx.appcompat.R.attr.colorPrimary,
                         androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
                     )
                     progressStyle.addProgressSegment(
