@@ -242,7 +242,14 @@ class PlaygroundService : Service() {
                     // Auto-popup priority
                     hyperBuilder.setIslandConfig(priority = 2)
                     
-                    val jsonPayload = hyperBuilder.buildJsonParam()
+                    val jsonPayloadRaw = hyperBuilder.buildJsonParam()
+                    val jsonObj = org.json.JSONObject(jsonPayloadRaw)
+                    val paramV2 = jsonObj.optJSONObject("param_v2")
+                    if (paramV2 != null) {
+                        paramV2.put("enableFloat", false)
+                        paramV2.put("islandFirstFloat", false)
+                    }
+                    val jsonPayload = jsonObj.toString()
                     val resBundle = hyperBuilder.buildResourceBundle()
                     
                     builder.extras.putString("miui.focus.param", jsonPayload)
