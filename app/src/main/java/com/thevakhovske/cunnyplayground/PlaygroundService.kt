@@ -206,10 +206,18 @@ class PlaygroundService : Service() {
                         io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", this, iconRes)
                     }
                     hyperBuilder.addPicture(hPic)
+                    
+                    // Register LargeIcon if available for heads-up/expanded views
+                    if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
+                        hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("miui.focus.pic_big_icon", largeIconObj))
+                    } else if (largeIconBitmap != null) {
+                        hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("miui.focus.pic_big_icon", largeIconBitmap))
+                    }
+
                     hyperBuilder.setBaseInfo(
                         title = title,
                         content = text,
-                        pictureKey = "default_icon"
+                        pictureKey = null
                     )
                     val islandText = statusChipText?.takeIf { it.isNotBlank() } ?: title
                     
@@ -299,7 +307,24 @@ class PlaygroundService : Service() {
                     val jsonPayloadRaw = hyperBuilder.buildJsonParam()
                     val jsonObj = org.json.JSONObject(jsonPayloadRaw)
                     val paramV2 = jsonObj.optJSONObject("param_v2")
+                    val useLargeIcon = (largeIconObj != null || largeIconBitmap != null)
                     if (paramV2 != null) {
+                        if (useLargeIcon) {
+                            // we love json injections
+                            val iconTextInfo = org.json.JSONObject().apply {
+                                val animIconInfo = org.json.JSONObject().apply {
+                                    put("type", 0)
+                                    put("src", "miui.focus.pic_big_icon")
+                                    put("loop", true)
+                                    put("autoplay", true)
+                                }
+                                put("animIconInfo", animIconInfo)
+                                put("title", title)
+                                put("content", text)
+                            }
+                            paramV2.put("iconTextInfo", iconTextInfo)
+                        }
+                        
                         paramV2.put("enableFloat", false)
                         paramV2.put("islandFirstFloat", false)
                     }
