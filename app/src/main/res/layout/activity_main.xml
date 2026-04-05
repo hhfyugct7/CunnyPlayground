@@ -258,11 +258,36 @@
                     <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/rbHIconAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Alert"/>
                 </RadioGroup>
 
-                <com.google.android.material.button.MaterialButton
+                <!-- Raw JSON Injection -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Raw Focus JSON (Bypasses Builder):"
+                    android:layout_marginTop="24dp"
+                    android:textStyle="bold"
+                    android:textColor="#FF9800"/>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Paste complete JSON here...">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etHyperRawJson"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minLines="5"
+                        android:gravity="top"
+                        android:inputType="textMultiLine"
+                        android:fontFamily="monospace"
+                        android:textSize="12sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <Button
                     android:id="@+id/btnHPost"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Post HyperIsland"
+                    android:text="Post HyperIsland Notification"
                     android:layout_marginTop="24dp"/>
                     
                 <com.google.android.material.button.MaterialButton

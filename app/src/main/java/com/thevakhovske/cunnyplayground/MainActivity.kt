@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etHText: EditText
     private lateinit var etHLeftText: EditText
     private lateinit var etHMainText: EditText
+    private lateinit var etHyperRawJson: EditText
     private lateinit var rgHIcon: RadioGroup
     private lateinit var btnHPost: Button
     private lateinit var btnHCancel: Button
@@ -264,6 +265,7 @@ class MainActivity : AppCompatActivity() {
         etHText = findViewById(R.id.etHText)
         etHLeftText = findViewById(R.id.etHLeftText)
         etHMainText = findViewById(R.id.etHMainText)
+        etHyperRawJson = findViewById(R.id.etHyperRawJson)
         rgHIcon = findViewById(R.id.rgHIcon)
         btnHPost = findViewById(R.id.btnHPost)
         btnHCancel = findViewById(R.id.btnHCancel)
@@ -464,7 +466,8 @@ class MainActivity : AppCompatActivity() {
         val title = etHTitle.text.toString()
         val text = etHText.text.toString()
         val leftText = etHLeftText.text.toString()
-        val mainText = etHMainText.text.toString()
+        val hyperMainText = etHMainText.text.toString()
+        val rawJson = etHyperRawJson.text.toString()
         
         val notificationId = ++lastId
         
@@ -480,7 +483,8 @@ class MainActivity : AppCompatActivity() {
             putExtra("title", title)
             putExtra("text", text)
             putExtra("hyper_left_text", leftText)
-            putExtra("hyper_main_text", mainText)
+            putExtra("hyper_main_text", hyperMainText)
+            putExtra("raw_hyper_json", rawJson)
             putExtra("id", notificationId)
             putExtra("icon_res", iconRes)
             putExtra("is_promoted", true)

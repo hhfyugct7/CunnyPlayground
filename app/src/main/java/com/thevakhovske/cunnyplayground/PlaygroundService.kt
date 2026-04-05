@@ -193,7 +193,14 @@ class PlaygroundService : Service() {
 
         if (castMode == "hyperisland") {
             try {
-                if (io.github.d4viddf.hyperisland_kit.HyperIslandNotification.isSupported(this)) {
+                val rawJson = intent.getStringExtra("raw_hyper_json")
+                if (!rawJson.isNullOrBlank()) {
+                    builder.extras.putString("miui.focus.param", rawJson)
+                    // We still need to set some defaults for the notification shade part
+                    builder.setSmallIcon(iconRes)
+                    builder.setContentTitle(title)
+                    builder.setContentText(text)
+                } else if (io.github.d4viddf.hyperisland_kit.HyperIslandNotification.isSupported(this)) {
                     val hyperBuilder = io.github.d4viddf.hyperisland_kit.HyperIslandNotification.Builder(
                         this,
                         "live_updates_recaster",
