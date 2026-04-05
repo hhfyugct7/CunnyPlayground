@@ -176,6 +176,19 @@ class MainActivity : AppCompatActivity() {
         val btnAppFilter = findViewById<Button>(R.id.btnAppFilter)
         val btnPermission = findViewById<Button>(R.id.btnNotificationAccess)
 
+        val rgCastAs = findViewById<RadioGroup>(R.id.rgCastAs)
+        val castMode = prefs.getString("cast_mode", "live_updates")
+        if (castMode == "hyperisland") {
+            rgCastAs.check(R.id.rbCastAsHyperIsland)
+        } else {
+            rgCastAs.check(R.id.rbCastAsLiveUpdates)
+        }
+        
+        rgCastAs.setOnCheckedChangeListener { _, checkedId ->
+            val mode = if (checkedId == R.id.rbCastAsHyperIsland) "hyperisland" else "live_updates"
+            prefs.edit().putString("cast_mode", mode).apply()
+        }
+
         swCast.isChecked = prefs.getBoolean("cast_notifications", false)
         swCast.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("cast_notifications", isChecked).apply()
@@ -387,6 +400,9 @@ class MainActivity : AppCompatActivity() {
             }
             putExtra("when", notification.timestamp)
             putExtra("source_app", "Manual")
+            
+            val castMode = getSharedPreferences("experimental_prefs", MODE_PRIVATE).getString("cast_mode", "live_updates")
+            putExtra("cast_mode", castMode)
         }
         
         if (Build.VERSION.SDK_INT >= 26) {

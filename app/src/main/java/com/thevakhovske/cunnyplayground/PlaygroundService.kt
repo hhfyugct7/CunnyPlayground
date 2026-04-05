@@ -21,6 +21,7 @@ class PlaygroundService : Service() {
         const val ACTION_CANCEL = "ACTION_CANCEL"
         const val ACTION_STOP = "ACTION_STOP"
         const val CHANNEL_ID = "live_updates_channel"
+        const val HYPER_CHANNEL_ID = "hyperslop_channel"
         const val NOTIFICATION_ID = 1001
     }
 
@@ -65,22 +66,25 @@ class PlaygroundService : Service() {
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
             intent.getParcelableExtra<android.graphics.drawable.Icon>("small_icon_obj")
-        } else null
+        } else null 
         val sourceApp = intent.getStringExtra("source_app")
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
         val statusChipText = intent.getStringExtra("status_chip_text")
         val showProgress = intent.getBooleanExtra("show_progress", true)
         val timestamp = intent.getLongExtra("when", System.currentTimeMillis())
         
+        val castMode = intent.getStringExtra("cast_mode") ?: "live_updates"
+        val targetChannel = if (castMode == "hyperisland") HYPER_CHANNEL_ID else CHANNEL_ID
+
         val largeIconObj = if (Build.VERSION.SDK_INT >= 23) {
             intent.getParcelableExtra<android.graphics.drawable.Icon>("large_icon_obj")
         } else null
         val largeIconBitmap = intent.getParcelableExtra<android.graphics.Bitmap>("large_icon_bitmap")
 
         activeIds.add(notificationId)
-        createNotificationChannel()
+        createNotificationChannel(targetChannel)
 
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, targetChannel)
         
         if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
             builder.setLargeIcon(largeIconObj)
@@ -159,11 +163,7 @@ class PlaygroundService : Service() {
                 // Apply Monet dynamic color accent to progress bar and icons
                 try {
                     val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(this)
-                    val primaryColor = com.google.android.material.color.MaterialColors.getColor(
-                        dynamicContext,
-                        androidx.appcompat.R.attr.colorPrimary,
-                        androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
-                    )
+                    val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
                     progressStyle.addProgressSegment(
                     NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(primaryColor)
                 )
@@ -180,6 +180,72 @@ class PlaygroundService : Service() {
             try {
                 val progressStyle = NotificationCompat.ProgressStyle()
                 builder.setStyle(progressStyle)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        if (castMode == "hyperisland") {
+            try {
+                if (io.github.d4viddf.hyperisland_kit.HyperIslandNotification.isSupported(this)) {
+                    val hyperBuilder = io.github.d4viddf.hyperisland_kit.HyperIslandNotification.Builder(
+                        this,
+                        "live_updates_recaster",
+                        "Incoming Notification"
+                    )
+                    
+                    val hPic = if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                        io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", iconObj)
+                    } else {
+                        io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", this, iconRes)
+                    }
+                    hyperBuilder.addPicture(hPic)
+                    hyperBuilder.setBaseInfo(
+                        title = title,
+                        content = text,
+                        pictureKey = "default_icon"
+                    )
+                    val islandText = statusChipText?.takeIf { it.isNotBlank() } ?: title
+                    
+                    // Structure the Big Island Area to populate both pill sides properly
+                    val picInfo = io.github.d4viddf.hyperisland_kit.models.PicInfo(1, "default_icon", false, false, 0, null, null, null)
+                    
+                    val leftTextInfoObj = io.github.d4viddf.hyperisland_kit.models.TextInfo(
+                        title = title,
+                        content = null,
+                        showHighlightColor = false,
+                        narrowFont = null
+                    )
+                    
+                    val imageTextInfoLeft = io.github.d4viddf.hyperisland_kit.models.ImageTextInfoLeft(
+                        1, picInfo, leftTextInfoObj, null
+                    )
+                    
+                    val rootTextInfo = io.github.d4viddf.hyperisland_kit.models.TextInfo(
+                        title = text, 
+                        content = null, 
+                        showHighlightColor = false, 
+                        narrowFont = null
+                    )
+                    
+                    // Pass rootTextInfo as the 3rd parameter mapping natively to "textInfo" block
+                    hyperBuilder.setBigIslandInfo(imageTextInfoLeft, null, rootTextInfo, null, null, null)
+                    
+                    // Use setSmallIslandIcon to cleanly map a solo picInfo block matching tethering smallIslandArea
+                    hyperBuilder.setSmallIslandIcon("default_icon")
+                    
+                    // The icon appearing in param_v2
+                    hyperBuilder.setPicInfo(2, "default_icon")
+                    
+                    // Auto-popup priority
+                    hyperBuilder.setIslandConfig(priority = 2)
+                    
+                    val jsonPayload = hyperBuilder.buildJsonParam()
+                    val resBundle = hyperBuilder.buildResourceBundle()
+                    
+                    builder.extras.putString("miui.focus.param", jsonPayload)
+                    builder.extras.putAll(resBundle)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -208,12 +274,13 @@ class PlaygroundService : Service() {
         }
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
-                val channel = NotificationChannel(CHANNEL_ID, "Live Updates", NotificationManager.IMPORTANCE_HIGH)
-                channel.description = "Channel for Live Updates Service"
+            if (manager.getNotificationChannel(channelId) == null) {
+                val channelName = if (channelId == HYPER_CHANNEL_ID) "HyperIsland" else "Live Updates"
+                val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+                channel.description = "Channel for $channelName Service"
                 channel.setSound(null, null) 
                 channel.enableVibration(false)
                 manager.createNotificationChannel(channel)

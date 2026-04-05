@@ -225,6 +225,31 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp"/>
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cast as:"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
+                <RadioGroup
+                    android:id="@+id/rgCastAs"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+                    <com.google.android.material.radiobutton.MaterialRadioButton 
+                        android:id="@+id/rbCastAsLiveUpdates" 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Live Updates" 
+                        android:checked="true"/>
+                    <com.google.android.material.radiobutton.MaterialRadioButton 
+                        android:id="@+id/rbCastAsHyperIsland" 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="HyperIsland"/>
+                </RadioGroup>
+
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -348,6 +373,14 @@
 
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HyperIsland Notifications"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAppFilter"

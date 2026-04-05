@@ -226,6 +226,9 @@ class NotificationCastListener : NotificationListenerService() {
                     putExtra("large_icon_bitmap", largeIcon)
                 }
             }
+            
+            val castMode = prefs.getString("cast_mode", "live_updates")
+            putExtra("cast_mode", castMode)
 
             putExtra("is_promoted", true)
             putExtra("when", sbn.notification.`when`)
