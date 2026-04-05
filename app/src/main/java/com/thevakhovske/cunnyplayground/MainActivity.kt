@@ -54,9 +54,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cbOngoing: com.google.android.material.checkbox.MaterialCheckBox
     private lateinit var cbPromoted: com.google.android.material.checkbox.MaterialCheckBox
     private lateinit var cbChronometer: com.google.android.material.checkbox.MaterialCheckBox
-    private lateinit var cbColorized: com.google.android.material.checkbox.MaterialCheckBox
     private lateinit var cbShowProgress: com.google.android.material.checkbox.MaterialCheckBox
-    private lateinit var rgStyle: RadioGroup
     private lateinit var rgIcon: RadioGroup
     private lateinit var btnPost: Button
     private lateinit var btnUpdate: Button
@@ -64,6 +62,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rvNotifications: RecyclerView
     private lateinit var llEnabledApps: LinearLayout
     private lateinit var tvEnabledAppsCount: TextView
+
+    // HyperIsland Fields
+    private lateinit var etHTitle: EditText
+    private lateinit var etHText: EditText
+    private lateinit var etHLeftText: EditText
+    private lateinit var etHMainText: EditText
+    private lateinit var rgHIcon: RadioGroup
+    private lateinit var btnHPost: Button
+    private lateinit var btnHCancel: Button
+    private lateinit var rootScrollMain: View
+    private lateinit var rootScrollRecaster: View
+    private lateinit var rootScrollHPlayground: View
 
     private val notifications = mutableListOf<NotificationInfo>()
     private val enabledAppsList = mutableListOf<EnabledApp>()
@@ -97,14 +107,23 @@ class MainActivity : AppCompatActivity() {
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_playground -> {
-                    findViewById<View>(R.id.rootScrollMain).visibility = View.VISIBLE
-                    findViewById<View>(R.id.rootScrollRecaster).visibility = View.GONE
+                    rootScrollMain.visibility = View.VISIBLE
+                    rootScrollHPlayground.visibility = View.GONE
+                    rootScrollRecaster.visibility = View.GONE
                     toolbar.title = "Live Updates Playground"
                     true
                 }
+                R.id.nav_hplayground -> {
+                    rootScrollMain.visibility = View.GONE
+                    rootScrollHPlayground.visibility = View.VISIBLE
+                    rootScrollRecaster.visibility = View.GONE
+                    toolbar.title = "HyperIsland Playground"
+                    true
+                }
                 R.id.nav_recaster -> {
-                    findViewById<View>(R.id.rootScrollMain).visibility = View.GONE
-                    findViewById<View>(R.id.rootScrollRecaster).visibility = View.VISIBLE
+                    rootScrollMain.visibility = View.GONE
+                    rootScrollHPlayground.visibility = View.GONE
+                    rootScrollRecaster.visibility = View.VISIBLE
                     toolbar.title = "Notification Re-Caster"
                     true
                 }
@@ -221,15 +240,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+        rootScrollMain = findViewById(R.id.rootScrollMain)
+        rootScrollRecaster = findViewById(R.id.rootScrollRecaster)
+        rootScrollHPlayground = findViewById(R.id.rootScrollHPlayground)
+
         etTitle = findViewById(R.id.etTitle)
         etText = findViewById(R.id.etText)
         etStatusChipText = findViewById(R.id.etStatusChipText)
         cbOngoing = findViewById(R.id.cbOngoing)
         cbPromoted = findViewById(R.id.cbPromoted)
         cbChronometer = findViewById(R.id.cbChronometer)
-        cbColorized = findViewById(R.id.cbColorized)
         cbShowProgress = findViewById(R.id.cbShowProgress)
-        rgStyle = findViewById(R.id.rgStyle)
         rgIcon = findViewById(R.id.rgIcon)
         btnPost = findViewById(R.id.btnPost)
         btnUpdate = findViewById(R.id.btnUpdate)
@@ -237,6 +258,15 @@ class MainActivity : AppCompatActivity() {
         rvNotifications = findViewById(R.id.rvNotifications)
         llEnabledApps = findViewById(R.id.llEnabledApps)
         tvEnabledAppsCount = findViewById(R.id.tvEnabledAppsCount)
+
+        // HyperIsland
+        etHTitle = findViewById(R.id.etHTitle)
+        etHText = findViewById(R.id.etHText)
+        etHLeftText = findViewById(R.id.etHLeftText)
+        etHMainText = findViewById(R.id.etHMainText)
+        rgHIcon = findViewById(R.id.rgHIcon)
+        btnHPost = findViewById(R.id.btnHPost)
+        btnHCancel = findViewById(R.id.btnHCancel)
 
         adapter = NotificationAdapter(notifications, ::onNotificationMenuClick)
         rvNotifications.layoutManager = LinearLayoutManager(this)
@@ -272,14 +302,26 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnCancel.setOnClickListener {
-            val intent = Intent(this, PlaygroundService::class.java).apply {
-                action = PlaygroundService.ACTION_STOP
-            }
-            startService(intent)
-            notifications.clear()
-            adapter.notifyDataSetChanged()
-            Toast.makeText(this, "Cleared all notifications", Toast.LENGTH_SHORT).show()
+            stopPlaygroundService()
         }
+
+        btnHPost.setOnClickListener {
+            postHyperNotification()
+        }
+
+        btnHCancel.setOnClickListener {
+            stopPlaygroundService()
+        }
+    }
+
+    private fun stopPlaygroundService() {
+        val intent = Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_STOP
+        }
+        startService(intent)
+        notifications.clear()
+        adapter.notifyDataSetChanged()
+        Toast.makeText(this, "Cleared all notifications", Toast.LENGTH_SHORT).show()
     }
 
     private fun onNotificationMenuClick(view: View, notification: NotificationInfo) {
@@ -400,9 +442,50 @@ class MainActivity : AppCompatActivity() {
             }
             putExtra("when", notification.timestamp)
             putExtra("source_app", "Manual")
-            
-            val castMode = getSharedPreferences("experimental_prefs", MODE_PRIVATE).getString("cast_mode", "live_updates")
-            putExtra("cast_mode", castMode)
+            putExtra("cast_mode", "live_updates")
+        }
+        
+        if (Build.VERSION.SDK_INT >= 26) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
+    private fun postHyperNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permission missing!", Toast.LENGTH_SHORT).show()
+                checkPermissions()
+                return
+            }
+        }
+
+        val title = etHTitle.text.toString()
+        val text = etHText.text.toString()
+        val leftText = etHLeftText.text.toString()
+        val mainText = etHMainText.text.toString()
+        
+        val notificationId = ++lastId
+        
+        val iconRes = when (rgHIcon.checkedRadioButtonId) {
+            R.id.rbHIconTimer -> R.drawable.ic_timer
+            R.id.rbHIconCall -> R.drawable.ic_call
+            R.id.rbHIconAlert -> R.drawable.ic_alert
+            else -> R.mipmap.ic_launcher_round
+        }
+
+        val intent = Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_START
+            putExtra("title", title)
+            putExtra("text", text)
+            putExtra("hyper_left_text", leftText)
+            putExtra("hyper_main_text", mainText)
+            putExtra("id", notificationId)
+            putExtra("icon_res", iconRes)
+            putExtra("is_promoted", true)
+            putExtra("source_app", "Manual-Hyper")
+            putExtra("cast_mode", "hyperisland")
         }
         
         if (Build.VERSION.SDK_INT >= 26) {

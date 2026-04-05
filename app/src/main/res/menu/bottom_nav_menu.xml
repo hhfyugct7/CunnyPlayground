@@ -5,6 +5,10 @@
         android:icon="@android:drawable/ic_menu_edit"
         android:title="Playground" />
     <item
+        android:id="@+id/nav_hplayground"
+        android:icon="@android:drawable/ic_menu_add"
+        android:title="HPlayground" />
+    <item
         android:id="@+id/nav_recaster"
         android:icon="@android:drawable/ic_menu_share"
         android:title="Re-Caster" />

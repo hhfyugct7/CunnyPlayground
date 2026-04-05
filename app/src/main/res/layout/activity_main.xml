@@ -40,7 +40,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Notification Builder"
+                    android:text="Live Updates Builder"
                     android:textSize="20sp"
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp"/>
@@ -129,46 +129,12 @@
                 android:text="Show Progress Bar (ProgressStyle)"
                 android:checked="true"/>
                 
-            <!-- Style Selection -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Notification Style:"
-                android:layout_marginTop="16dp"
-                android:visibility="gone"
-                android:textStyle="bold"/>
-                
-            <RadioGroup
-                android:id="@+id/rgStyle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:orientation="horizontal">
-                <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/rbProgress" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ProgressStyle (Live Update)" android:checked="true"/>
-            </RadioGroup>
-
-            <!-- Color Selection -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Colorized:"
-                android:layout_marginTop="8dp"
-                android:visibility="gone"
-                android:textStyle="bold"/>
-            <com.google.android.material.checkbox.MaterialCheckBox
-                android:id="@+id/cbColorized"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:text="Colorized Background (CallStyle default)"
-                android:checked="true"/>
-            
             <!-- Actions -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnPost"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Post Notification"
+                android:text="Post Live Update"
                 android:layout_marginTop="24dp"/>
                 
             <com.google.android.material.button.MaterialButton
@@ -201,6 +167,111 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- HyperIsland Playground -->
+        <ScrollView
+            android:id="@+id/rootScrollHPlayground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HyperIsland Builder"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp"/>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Content Title (Expanded)">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etHTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="HyperIsland" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Content Text (Expanded)">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etHText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Testing Island Rendering..." />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Left Pill Text (Small Side)">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etHLeftText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="40m" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Main Pill Text (Center Side)">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etHMainText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Turn Right" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Icon Selection (Reuse rgHIcon) -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Icon:"
+                    android:layout_marginTop="16dp"
+                    android:textStyle="bold"/>
+                
+                <RadioGroup
+                    android:id="@+id/rgHIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/rbHIconDefault" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="App" android:checked="true"/>
+                    <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/rbHIconTimer" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Timer"/>
+                    <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/rbHIconCall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Call"/>
+                    <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/rbHIconAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Alert"/>
+                </RadioGroup>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnHPost"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Post HyperIsland"
+                    android:layout_marginTop="24dp"/>
+                    
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnHCancel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel All"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="#FF0000"/>
 
             </LinearLayout>
         </ScrollView>

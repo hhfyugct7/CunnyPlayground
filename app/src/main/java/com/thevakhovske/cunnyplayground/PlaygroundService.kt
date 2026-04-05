@@ -11,8 +11,12 @@ import android.graphics.Color
 import android.os.Build
 import android.os.IBinder
 import android.widget.Toast
+import android.graphics.Bitmap
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
+import io.github.d4viddf.hyperisland_kit.HyperAction
+import io.github.d4viddf.hyperisland_kit.HyperPicture
 
 class PlaygroundService : Service() {
 
@@ -244,6 +248,53 @@ class PlaygroundService : Service() {
                     
                     // Auto-popup priority
                     hyperBuilder.setIslandConfig(priority = 2)
+
+                    // Add Interactive Actions (Buttons)
+                    val originalActions = if (Build.VERSION.SDK_INT >= 34) {
+                        intent.getParcelableArrayListExtra("actions", Notification.Action::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableArrayListExtra<Notification.Action>("actions")
+                    }
+
+                    originalActions?.forEachIndexed { index, action ->
+                        val actionIntent = action.actionIntent
+                        if (actionIntent != null) {
+                            val type = when {
+                                actionIntent.isActivity -> 1
+                                actionIntent.isBroadcast -> 2
+                                actionIntent.isForegroundService || actionIntent.isService -> 3
+                                else -> 2 // Default to broadcast
+                            }
+
+                            val actionIcon = action.getIcon()
+                            val actionBitmap: Bitmap? = if (actionIcon != null) {
+                                try {
+                                    actionIcon.loadDrawable(this)?.toBitmap(128, 128)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            } else null
+
+                            val hAction = if (actionBitmap != null) {
+                                HyperAction(
+                                    key = "action_$index",
+                                    title = action.title?.toString() ?: "Action",
+                                    bitmap = actionBitmap,
+                                    pendingIntent = actionIntent,
+                                    actionIntentType = type
+                                )
+                            } else {
+                                HyperAction(
+                                    key = "action_$index",
+                                    title = action.title?.toString() ?: "Action",
+                                    pendingIntent = actionIntent,
+                                    actionIntentType = type
+                                )
+                            }
+                            hyperBuilder.addAction(hAction)
+                        }
+                    }
                     
                     val jsonPayloadRaw = hyperBuilder.buildJsonParam()
                     val jsonObj = org.json.JSONObject(jsonPayloadRaw)
