@@ -209,11 +209,14 @@ class PlaygroundService : Service() {
                     )
                     val islandText = statusChipText?.takeIf { it.isNotBlank() } ?: title
                     
+                    val hyperLeftExtra = intent.getStringExtra("hyper_left_text")
+                    val hyperMainExtra = intent.getStringExtra("hyper_main_text")
+
                     // Structure the Big Island Area to populate both pill sides properly
                     val picInfo = io.github.d4viddf.hyperisland_kit.models.PicInfo(1, "default_icon", false, false, 0, null, null, null)
                     
                     val leftTextInfoObj = io.github.d4viddf.hyperisland_kit.models.TextInfo(
-                        title = title,
+                        title = hyperLeftExtra?.takeIf { it.isNotBlank() } ?: title,
                         content = null,
                         showHighlightColor = false,
                         narrowFont = null
@@ -224,7 +227,7 @@ class PlaygroundService : Service() {
                     )
                     
                     val rootTextInfo = io.github.d4viddf.hyperisland_kit.models.TextInfo(
-                        title = text, 
+                        title = hyperMainExtra?.takeIf { it.isNotBlank() } ?: text, 
                         content = null, 
                         showHighlightColor = false, 
                         narrowFont = null

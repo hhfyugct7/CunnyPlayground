@@ -31,6 +31,7 @@ class AppConfigActivity : AppCompatActivity() {
         val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbarConfig)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        toolbar.navigationIcon?.setTint(android.graphics.Color.WHITE)
         toolbar.setNavigationOnClickListener { finish() }
 
         packageName = intent.getStringExtra("package_name") ?: finish().run { return }
@@ -110,16 +111,70 @@ class AppConfigActivity : AppCompatActivity() {
             }
         }
 
-        // Load Settings
-        val textSource = prefs.getString("${packageName}_text_source", "text")
-        val rgTextSource: RadioGroup = findViewById(R.id.rgTextSource)
-        when (textSource) {
-            "title" -> rgTextSource.check(R.id.rbSourceTitle)
-            "subtext" -> rgTextSource.check(R.id.rbSourceSubText)
-            "titletext" -> rgTextSource.check(R.id.rbSourceTitleText)
-            else -> rgTextSource.check(R.id.rbSourceText)
+        val castMode = prefs.getString("cast_mode", "live_updates")
+        val llLiveUpdates = findViewById<LinearLayout>(R.id.llLiveUpdatesConfig)
+        val llHyperIsland = findViewById<LinearLayout>(R.id.llHyperIslandConfig)
+
+        if (castMode == "hyperisland") {
+            llLiveUpdates.visibility = android.view.View.GONE
+            llHyperIsland.visibility = android.view.View.VISIBLE
+
+            fun getIndex(source: String): Int = when (source) {
+                "title" -> 0
+                "text" -> 1
+                "subtext" -> 2
+                "titletext" -> 3
+                else -> 1
+            }
+
+            val leftSource = prefs.getString("${packageName}_hyper_left_source", "title") ?: "title"
+            findViewById<Spinner>(R.id.spnHypLeftSource).setSelection(getIndex(leftSource))
+
+            val mainSource = prefs.getString("${packageName}_hyper_main_source", "text") ?: "text"
+            findViewById<Spinner>(R.id.spnHypMainSource).setSelection(getIndex(mainSource))
+
+            findViewById<EditText>(R.id.etHypLeftRegex).setText(prefs.getString("${packageName}_hyper_left_regex", ""))
+            findViewById<EditText>(R.id.etHypMainRegex).setText(prefs.getString("${packageName}_hyper_main_regex", ""))
+
+            val filterWatcher = object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updatePreview() }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            }
+            findViewById<EditText>(R.id.etHypLeftRegex).addTextChangedListener(filterWatcher)
+            findViewById<EditText>(R.id.etHypMainRegex).addTextChangedListener(filterWatcher)
+
+            val spinListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) { updatePreview() }
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
+            }
+            findViewById<Spinner>(R.id.spnHypLeftSource).onItemSelectedListener = spinListener
+            findViewById<Spinner>(R.id.spnHypMainSource).onItemSelectedListener = spinListener
+
+        } else {
+            llLiveUpdates.visibility = android.view.View.VISIBLE
+            llHyperIsland.visibility = android.view.View.GONE
+
+            val textSource = prefs.getString("${packageName}_text_source", "text")
+            val rgTextSource: RadioGroup = findViewById(R.id.rgTextSource)
+            when (textSource) {
+                "title" -> rgTextSource.check(R.id.rbSourceTitle)
+                "subtext" -> rgTextSource.check(R.id.rbSourceSubText)
+                "titletext" -> rgTextSource.check(R.id.rbSourceTitleText)
+                else -> rgTextSource.check(R.id.rbSourceText)
+            }
+            rgTextSource.setOnCheckedChangeListener { _, _ -> updatePreview() }
+
+            val etRegex: EditText = findViewById(R.id.etRegexFilter)
+            etRegex.setText(prefs.getString("${packageName}_regex_filter", ""))
+            etRegex.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updatePreview() }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
         }
 
+        // Load Global Icon Settings
         val currentIconSource = prefs.getString("${packageName}_icon_source", "default")
         val rbExtracted = findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted)
         val hasDrawables = !prefs.getString("${packageName}_last_drawables", "").isNullOrEmpty()
@@ -134,65 +189,68 @@ class AppConfigActivity : AppCompatActivity() {
             "notification" -> findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked = true
             "extracted" -> rbExtracted.isChecked = true
             else -> {
-                // Default: none checked, uses global toggle
+                // Default: uses global toggle
             }
         }
 
         updatePreview()
 
-        rgTextSource.setOnCheckedChangeListener { _, _ -> updatePreview() }
         findViewById<RadioGroup>(R.id.rgIconSource).setOnCheckedChangeListener { _, _ -> updatePreview() }
-
-        val etRegex: EditText = findViewById(R.id.etRegexFilter)
-        etRegex.setText(prefs.getString("${packageName}_regex_filter", ""))
-        etRegex.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updatePreview() }
-            override fun afterTextChanged(s: android.text.Editable?) {}
-        })
     }
 
     private fun updatePreview() {
         val tvPreviewText: TextView = findViewById(R.id.tvPreviewText)
         val ivPreviewIcon: ImageView = findViewById(R.id.ivPreviewIcon)
 
-        // Update Text
-        val rgTextSource = findViewById<RadioGroup>(R.id.rgTextSource)
-        val selectedText = when (rgTextSource.checkedRadioButtonId) {
-            R.id.rbSourceTitle -> prefs.getString("${packageName}_last_title", "Title")
-            R.id.rbSourceSubText -> prefs.getString("${packageName}_last_subtext", "SubText")
-            R.id.rbSourceTitleText -> {
-                val t = prefs.getString("${packageName}_last_title", "Title")
-                val txt = prefs.getString("${packageName}_last_text", "Text")
-                "$t • $txt"
-            }
-            else -> prefs.getString("${packageName}_last_text", "Text")
-        } ?: ""
-
-        // Apply Regex Filter
-        val etRegex: EditText = findViewById(R.id.etRegexFilter)
-        val regexStr = etRegex.text.toString()
-        val filteredText = if (regexStr.isNotEmpty()) {
-            try {
+        fun applyRegex(rawText: String, regexStr: String): String {
+            if (regexStr.isEmpty()) return rawText
+            return try {
                 val regex = Regex(regexStr)
-                val match = regex.find(selectedText)
+                val match = regex.find(rawText)
                 if (match != null) {
-                    if (match.groups.size > 1) {
-                        match.groupValues.drop(1).joinToString(" ")
-                    } else {
-                        match.value
-                    }
-                } else {
-                    selectedText // Fallback if no match
-                }
-            } catch (e: Exception) {
-                selectedText // Invalid regex
-            }
-        } else {
-            selectedText
+                    if (match.groups.size > 1) match.groupValues.drop(1).joinToString(" ") else match.value
+                } else rawText
+            } catch (e: Exception) { rawText }
         }
 
-        tvPreviewText.text = filteredText
+        fun getRawText(sourceString: String): String {
+            return when (sourceString) {
+                "title" -> prefs.getString("${packageName}_last_title", "Title") ?: ""
+                "subtext" -> prefs.getString("${packageName}_last_subtext", "SubText") ?: ""
+                "titletext" -> {
+                    val t = prefs.getString("${packageName}_last_title", "Title") ?: ""
+                    val txt = prefs.getString("${packageName}_last_text", "Text") ?: ""
+                    "$t • $txt"
+                }
+                else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
+            }
+        }
+
+        val castMode = prefs.getString("cast_mode", "live_updates")
+        if (castMode == "hyperisland") {
+            fun getSourceForIndex(index: Int): String = when (index) { 0 -> "title" 1 -> "text" 2 -> "subtext" 3 -> "titletext" else -> "text" }
+            val leftSource = getSourceForIndex(findViewById<Spinner>(R.id.spnHypLeftSource).selectedItemPosition)
+            val mainSource = getSourceForIndex(findViewById<Spinner>(R.id.spnHypMainSource).selectedItemPosition)
+            
+            val leftRaw = getRawText(leftSource)
+            val mainRaw = getRawText(mainSource)
+            
+            val leftF = applyRegex(leftRaw, findViewById<EditText>(R.id.etHypLeftRegex).text.toString())
+            val mainF = applyRegex(mainRaw, findViewById<EditText>(R.id.etHypMainRegex).text.toString())
+            
+            tvPreviewText.text = "L: $leftF  |  M: $mainF"
+        } else {
+            val rgTextSource = findViewById<RadioGroup>(R.id.rgTextSource)
+            val selectedTextSource = when (rgTextSource.checkedRadioButtonId) {
+                R.id.rbSourceTitle -> "title"
+                R.id.rbSourceSubText -> "subtext"
+                R.id.rbSourceTitleText -> "titletext"
+                else -> "text"
+            }
+            val raw = getRawText(selectedTextSource)
+            val regexStr = findViewById<EditText>(R.id.etRegexFilter).text.toString()
+            tvPreviewText.text = applyRegex(raw, regexStr)
+        }
 
         // Update Icon
         val checkedIconId = findViewById<RadioGroup>(R.id.rgIconSource).checkedRadioButtonId
@@ -203,7 +261,6 @@ class AppConfigActivity : AppCompatActivity() {
                     ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
                 }
                 R.id.rbIconNotification -> {
-                    // Try to load the "small icon" from the pacakge if possible, else fallback to app icon
                     ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
                 }
                 R.id.rbIconExtracted -> {
@@ -222,7 +279,6 @@ class AppConfigActivity : AppCompatActivity() {
                     }
                 }
                 else -> {
-                    // Default case
                     ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
                 }
             }
@@ -251,28 +307,37 @@ class AppConfigActivity : AppCompatActivity() {
     }
 
     private fun saveSettings() {
-        val rgTextSource: RadioGroup = findViewById(R.id.rgTextSource)
-        val rgIconSource: RadioGroup = findViewById(R.id.rgIconSource)
-
-        val selectedTextSource = when (rgTextSource.checkedRadioButtonId) {
-            R.id.rbSourceTitle -> "title"
-            R.id.rbSourceSubText -> "subtext"
-            R.id.rbSourceTitleText -> "titletext"
-            else -> "text"
-        }
-        val iconSource = when {
-            findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconApp).isChecked -> "app"
-            findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked -> "notification"
-            findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted).isChecked -> "extracted"
-            else -> "default"
-        }
-
-        val regexFilter = findViewById<EditText>(R.id.etRegexFilter).text.toString()
+        val castMode = prefs.getString("cast_mode", "live_updates")
 
         prefs.edit().apply {
-            putString("${packageName}_text_source", selectedTextSource)
+            if (castMode == "hyperisland") {
+                fun getSourceForIndex(index: Int): String = when (index) { 0 -> "title" 1 -> "text" 2 -> "subtext" 3 -> "titletext" else -> "text" }
+                val spLeft = findViewById<Spinner>(R.id.spnHypLeftSource)
+                val spMain = findViewById<Spinner>(R.id.spnHypMainSource)
+                putString("${packageName}_hyper_left_source", getSourceForIndex(spLeft.selectedItemPosition))
+                putString("${packageName}_hyper_main_source", getSourceForIndex(spMain.selectedItemPosition))
+                putString("${packageName}_hyper_left_regex", findViewById<EditText>(R.id.etHypLeftRegex).text.toString())
+                putString("${packageName}_hyper_main_regex", findViewById<EditText>(R.id.etHypMainRegex).text.toString())
+            } else {
+                val rgTextSource: RadioGroup = findViewById(R.id.rgTextSource)
+                val selectedTextSource = when (rgTextSource.checkedRadioButtonId) {
+                    R.id.rbSourceTitle -> "title"
+                    R.id.rbSourceSubText -> "subtext"
+                    R.id.rbSourceTitleText -> "titletext"
+                    else -> "text"
+                }
+                val regexFilter = findViewById<EditText>(R.id.etRegexFilter).text.toString()
+                putString("${packageName}_text_source", selectedTextSource)
+                putString("${packageName}_regex_filter", regexFilter)
+            }
+
+            val iconSource = when {
+                findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconApp).isChecked -> "app"
+                findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked -> "notification"
+                findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted).isChecked -> "extracted"
+                else -> "default"
+            }
             putString("${packageName}_icon_source", iconSource)
-            putString("${packageName}_regex_filter", regexFilter)
             apply()
         }
         Toast.makeText(this, "Configuration Saved", Toast.LENGTH_SHORT).show()

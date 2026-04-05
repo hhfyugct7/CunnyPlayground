@@ -80,34 +80,43 @@ class NotificationCastListener : NotificationListenerService() {
         Log.d("NotificationCast", "Casting notification from $sourceApp (${sbn.packageName})")
 
         // Read per-app customization
-        val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
-        val chipText = when (textSource) {
-            "title" -> finalTitle
-            "subtext" -> if (rawSubText.isNotEmpty()) rawSubText else finalText
-            "titletext" -> "$finalTitle • $finalText"
-            else -> finalText
+        val castMode = prefs.getString("cast_mode", "live_updates")
+        
+        fun resolveText(source: String?): String {
+            return when (source) {
+                "title" -> finalTitle
+                "subtext" -> if (rawSubText.isNotEmpty()) rawSubText else finalText
+                "titletext" -> "$finalTitle • $finalText"
+                else -> finalText
+            }
+        }
+        
+        fun applyRegex(rawText: String, regexStr: String?): String {
+            if (regexStr.isNullOrEmpty()) return rawText
+            return try {
+                val match = Regex(regexStr).find(rawText)
+                if (match != null) {
+                    if (match.groups.size > 1) match.groupValues.drop(1).joinToString(" ") else match.value
+                } else rawText
+            } catch (e: Exception) { rawText }
         }
 
-        // Apply Regex Filter
-        val regexStr = prefs.getString("${sbn.packageName}_regex_filter", "") ?: ""
-        val finalChipText = if (regexStr.isNotEmpty()) {
-            try {
-                val regex = Regex(regexStr)
-                val match = regex.find(chipText)
-                if (match != null) {
-                    if (match.groups.size > 1) {
-                        match.groupValues.drop(1).joinToString(" ")
-                    } else {
-                        match.value
-                    }
-                } else {
-                    chipText
-                }
-            } catch (e: Exception) {
-                chipText
-            }
+        var finalChipText = ""
+        var hyperLeftText = ""
+        var hyperMainText = ""
+
+        if (castMode == "hyperisland") {
+            val leftSource = prefs.getString("${sbn.packageName}_hyper_left_source", "title")
+            val leftRegex = prefs.getString("${sbn.packageName}_hyper_left_regex", "")
+            hyperLeftText = applyRegex(resolveText(leftSource), leftRegex)
+
+            val mainSource = prefs.getString("${sbn.packageName}_hyper_main_source", "text")
+            val mainRegex = prefs.getString("${sbn.packageName}_hyper_main_regex", "")
+            hyperMainText = applyRegex(resolveText(mainSource), mainRegex)
         } else {
-            chipText
+            val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
+            val regexStr = prefs.getString("${sbn.packageName}_regex_filter", "")
+            finalChipText = applyRegex(resolveText(textSource), regexStr)
         }
 
         val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")
@@ -185,7 +194,12 @@ class NotificationCastListener : NotificationListenerService() {
         val castId = (pkg.hashCode() + sbn.id) % 10000 + 20000
 
         // Deduping: Generate a key based on content that effects the UI
-        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|P:$progress/$progressMax/$isIndeterminate"
+        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|P:$progress/$progressMax/$isIndeterminate"
+        
+        if (castMode == "hyperisland") {
+            Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
+        }
+
         if (lastNotificationContent[castId] == contentKey) {
             // Log.d("NotificationCast", "Skipping redundant update for $sourceApp ($pkg)")
             return
@@ -198,7 +212,27 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("title", finalTitle)
             putExtra("text", finalText)
             putExtra("source_app", sourceApp)
-            putExtra("status_chip_text", processedChipText) 
+            val limit7Char = prefs.getBoolean("limit_chip_7char", false)
+            var processedChipText = if (limit7Char && finalChipText.length > 7 && castMode != "hyperisland") {
+                finalChipText.take(7)
+            } else {
+                finalChipText
+            }
+
+            // Override shortcriticaltext with progress percentage
+            val showPercent = prefs.getBoolean("show_progress_percentage", false)
+            if (showPercent && hasProgress && progressMax > 0 && !isIndeterminate && castMode != "hyperisland") {
+                val percent = (progress * 100) / progressMax
+                processedChipText = "$percent%"
+            }
+
+            putExtra("status_chip_text", processedChipText)
+            
+            if (castMode == "hyperisland") {
+                putExtra("hyper_left_text", hyperLeftText)
+                putExtra("hyper_main_text", hyperMainText)
+            }
+            
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {
@@ -227,7 +261,6 @@ class NotificationCastListener : NotificationListenerService() {
                 }
             }
             
-            val castMode = prefs.getString("cast_mode", "live_updates")
             putExtra("cast_mode", castMode)
 
             putExtra("is_promoted", true)

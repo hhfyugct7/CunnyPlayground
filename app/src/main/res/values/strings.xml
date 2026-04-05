@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">CunnyPlayground</string>
+    <string-array name="hype_source_options">
+        <item>Title</item>
+        <item>Text</item>
+        <item>SubText</item>
+        <item>Title + Text</item>
+    </string-array>
 </resources>
