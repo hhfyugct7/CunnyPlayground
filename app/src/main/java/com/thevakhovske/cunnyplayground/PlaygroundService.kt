@@ -126,62 +126,64 @@ class PlaygroundService : Service() {
             builder.addAction(builderAction)
         }
 
-        // Apply Progress
-        val progress = intent.getIntExtra("progress", 0)
-        val progressMax = intent.getIntExtra("progress_max", 0)
-        val isIndeterminate = intent.getBooleanExtra("progress_indeterminate", false)
-        
-        if (showProgress) {
-            builder.setProgress(progressMax, progress, isIndeterminate)
-        }
-
-        if (isPromoted) {
-            try {
-                val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
-                method.invoke(builder, true)
-            } catch (e: Exception) {
-                builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
+        if (castMode == "live_updates") {
+            // Apply Progress
+            val progress = intent.getIntExtra("progress", 0)
+            val progressMax = intent.getIntExtra("progress_max", 0)
+            val isIndeterminate = intent.getBooleanExtra("progress_indeterminate", false)
+            
+            if (showProgress) {
+                builder.setProgress(progressMax, progress, isIndeterminate)
             }
-        }
-
-        if (!statusChipText.isNullOrEmpty()) {
-            try {
-                val method = builder.javaClass.getMethod("setShortCriticalText", String::class.java)
-                method.invoke(builder, statusChipText)
-            } catch (e: Exception) {
-                // Fail silently if API not available
-            }
-        }
-
-        // Progress Style (Status Chip)
-        if (showProgress && isPromoted && progressMax > 0) {
-            try {
-                val progressStyle = NotificationCompat.ProgressStyle()
-                val totalDuration = 100000 // arbitrary base for percentage (Int)
-                val currentProgress = (progress.toDouble() / progressMax * totalDuration).toInt()
-                
-                // Apply Monet dynamic color accent to progress bar and icons
+    
+            if (isPromoted) {
                 try {
-                    val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(this)
-                    val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
-                    progressStyle.addProgressSegment(
-                    NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(primaryColor)
-                )
+                    val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
+                    method.invoke(builder, true)
+                } catch (e: Exception) {
+                    builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
+                }
+            }
+    
+            if (!statusChipText.isNullOrEmpty()) {
+                try {
+                    val method = builder.javaClass.getMethod("setShortCriticalText", String::class.java)
+                    method.invoke(builder, statusChipText)
+                } catch (e: Exception) {
+                    // Fail silently if API not available
+                }
+            }
+    
+            // Progress Style (Status Chip)
+            if (showProgress && isPromoted && progressMax > 0) {
+                try {
+                    val progressStyle = NotificationCompat.ProgressStyle()
+                    val totalDuration = 100000 // arbitrary base for percentage (Int)
+                    val currentProgress = (progress.toDouble() / progressMax * totalDuration).toInt()
+                    
+                    // Apply Monet dynamic color accent to progress bar and icons
+                    try {
+                        val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(this)
+                        val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
+                        progressStyle.addProgressSegment(
+                        NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(primaryColor)
+                    )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    progressStyle.setProgress(currentProgress)
+                    builder.setStyle(progressStyle)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                progressStyle.setProgress(currentProgress)
-                builder.setStyle(progressStyle)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        } else if (showProgress) {
-            // Standard progress only
-            try {
-                val progressStyle = NotificationCompat.ProgressStyle()
-                builder.setStyle(progressStyle)
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } else if (showProgress) {
+                // Standard progress only
+                try {
+                    val progressStyle = NotificationCompat.ProgressStyle()
+                    builder.setStyle(progressStyle)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
 
