@@ -6,6 +6,13 @@ import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import android.widget.FrameLayout
+import android.widget.RemoteViews
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import java.io.File
+import java.io.FileOutputStream
 
 class NotificationCastListener : NotificationListenerService() {
     
@@ -53,6 +60,8 @@ class NotificationCastListener : NotificationListenerService() {
         val finalTitle = if (rawTitle.isEmpty()) "Notification" else rawTitle
         val finalText = rawText
 
+        var rvRenderBitmap: android.graphics.Bitmap? = null
+
         // Cache raw data and full dump for the customization page
         val dump = StringBuilder()
         val drawableIds = mutableSetOf<Int>()
@@ -68,6 +77,26 @@ class NotificationCastListener : NotificationListenerService() {
             putString("${sbn.packageName}_last_raw_dump", dumpText)
             putString("${sbn.packageName}_last_drawables", drawableIds.joinToString(","))
             apply()
+        }
+
+        // Render and Save Notification Preview
+        try {
+            val remoteViews = sbn.notification.bigContentView 
+                ?: sbn.notification.contentView 
+            
+            if (remoteViews != null) {
+                rvRenderBitmap = renderRemoteViewsToBitmap(remoteViews)
+                if (rvRenderBitmap != null) {
+                    val rendersDir = File(filesDir, "renders")
+                    if (!rendersDir.exists()) rendersDir.mkdirs()
+                    val renderFile = File(rendersDir, "${sbn.packageName}.png")
+                    FileOutputStream(renderFile).use { out ->
+                        rvRenderBitmap?.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NotificationCast", "Failed to render notification preview", e)
         }
 
         val sourceApp = try {
@@ -213,6 +242,8 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("text", finalText)
             putExtra("subtext", rawSubText)
             putExtra("source_app", sourceApp)
+            putExtra("package_name", pkg)
+            putExtra("has_rv_render", rvRenderBitmap != null)
             val limit7Char = prefs.getBoolean("limit_chip_7char", false)
             var processedChipText = if (limit7Char && finalChipText.length > 7 && castMode != "hyperisland") {
                 finalChipText.take(7)
@@ -410,6 +441,39 @@ class NotificationCastListener : NotificationListenerService() {
 
         } catch (e: Exception) {
             sb.append("  - (Dump failed: ${e.message})\n")
+        }
+    }
+
+    private fun renderRemoteViewsToBitmap(remoteViews: RemoteViews): Bitmap? {
+        return try {
+            val parent = FrameLayout(this)
+            val view = remoteViews.apply(this, parent)
+            
+            // Measure based on screen width
+            val displayMetrics = resources.displayMetrics
+            val widthSpec = View.MeasureSpec.makeMeasureSpec(displayMetrics.widthPixels, View.MeasureSpec.AT_MOST)
+            val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            
+            view.measure(widthSpec, heightSpec)
+            val width = view.measuredWidth.coerceAtLeast(1)
+            val height = view.measuredHeight.coerceAtLeast(1)
+            
+            view.layout(0, 0, width, height)
+            
+            // Scaled render for background (limit size to avoid TransactionTooLargeException)
+            val maxWidth = 800
+            val scale = if (width > maxWidth) maxWidth.toFloat() / width else 1f
+            val finalWidth = (width * scale).toInt()
+            val finalHeight = (height * scale).toInt()
+            
+            val bitmap = Bitmap.createBitmap(finalWidth, finalHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.scale(scale, scale)
+            view.draw(canvas)
+            bitmap
+        } catch (e: Exception) {
+            Log.e("NotificationCast", "RemoteViews rendering failed", e)
+            null
         }
     }
 

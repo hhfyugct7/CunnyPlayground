@@ -4,6 +4,8 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.*
+import android.graphics.BitmapFactory
+import java.io.File
 import androidx.appcompat.app.AppCompatActivity
 
 class AppConfigActivity : AppCompatActivity() {
@@ -73,6 +75,27 @@ class AppConfigActivity : AppCompatActivity() {
             val clip = android.content.ClipData.newPlainText("Notification Dump", lastDump)
             clipboard.setPrimaryClip(clip)
             Toast.makeText(this, "Dump copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
+
+        // Load Render Preview
+        val renderFile = File(filesDir, "renders/${packageName}.png")
+        val ivPreview: ImageView = findViewById(R.id.ivNotificationPreview)
+        val cvPreview: androidx.cardview.widget.CardView = findViewById(R.id.cvNotificationPreview)
+        val tvLabelPreview: TextView = findViewById(R.id.tvLabelPreview)
+
+        if (renderFile.exists()) {
+            try {
+                val bitmap = BitmapFactory.decodeFile(renderFile.absolutePath)
+                ivPreview.setImageBitmap(bitmap)
+                cvPreview.visibility = android.view.View.VISIBLE
+                tvLabelPreview.visibility = android.view.View.VISIBLE
+            } catch (e: Exception) {
+                cvPreview.visibility = android.view.View.GONE
+                tvLabelPreview.visibility = android.view.View.GONE
+            }
+        } else {
+            cvPreview.visibility = android.view.View.GONE
+            tvLabelPreview.visibility = android.view.View.GONE
         }
 
         // Load Drawables
