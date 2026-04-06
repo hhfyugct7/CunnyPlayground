@@ -257,7 +257,7 @@ class PlaygroundService : Service() {
 
                     hyperBuilder.setBaseInfo(
                         title = title,
-                        content = if (subtext.isNullOrBlank()) text else "$text • $subtext",
+                        content = text,
                         pictureKey = null
                     )
                     val islandText = statusChipText?.takeIf { it.isNotBlank() } ?: title
@@ -368,6 +368,14 @@ class PlaygroundService : Service() {
                         
                         paramV2.put("enableFloat", false)
                         paramV2.put("islandFirstFloat", false)
+                        
+                        // Inject hintInfo if subtext exists
+                        if (!subtext.isNullOrBlank()) {
+                            paramV2.put("hintInfo", org.json.JSONObject().apply {
+                                put("type", 1)
+                                put("title", subtext)
+                            })
+                        }
                         
                         // Implement Progress Bar Support (Manual Injection)
                         val progress = intent.getIntExtra("progress", 0)
