@@ -12,8 +12,6 @@ import android.os.Build
 import android.os.IBinder
 import android.widget.Toast
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import java.io.File
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -91,9 +89,9 @@ class PlaygroundService : Service() {
     }
 
     private fun startPromotedNotification(intent: Intent) {
-        var title = intent.getStringExtra("title") ?: "Ongoing Task"
-        var text = intent.getStringExtra("text") ?: "Live Update Active"
-        var subtext = intent.getStringExtra("subtext") ?: ""
+        val title = intent.getStringExtra("title") ?: "Ongoing Task"
+        val text = intent.getStringExtra("text") ?: "Live Update Active"
+        val subtext = intent.getStringExtra("subtext")
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
@@ -112,25 +110,6 @@ class PlaygroundService : Service() {
             intent.getParcelableExtra<android.graphics.drawable.Icon>("large_icon_obj")
         } else null
         val largeIconBitmap = intent.getParcelableExtra<android.graphics.Bitmap>("large_icon_bitmap")
-        
-        val hasRvRender = intent.getBooleanExtra("has_rv_render", false)
-        val targetPkg = intent.getStringExtra("package_name") ?: ""
-        val rvRenderBitmap = if (hasRvRender && targetPkg.isNotEmpty()) {
-            try {
-                val renderFile = File(filesDir, "renders/$targetPkg.png")
-                if (renderFile.exists()) {
-                    BitmapFactory.decodeFile(renderFile.absolutePath)
-                } else null
-            } catch (e: Exception) { null }
-        } else {
-            intent.getParcelableExtra<android.graphics.Bitmap>("rv_render")
-        }
-
-        if (rvRenderBitmap != null) {
-            title = " "
-            text = " "
-            subtext = " "
-        }
 
         activeIds.add(notificationId)
         createNotificationChannel(targetChannel)
@@ -259,11 +238,6 @@ class PlaygroundService : Service() {
                     hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("big_icon", largeIconObj))
                 } else if (largeIconBitmap != null) {
                     hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("big_icon", largeIconBitmap))
-                }
-                
-                // Register RemoteViews render as background if available
-                if (rvRenderBitmap != null) {
-                    hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("rv_view", rvRenderBitmap))
                 }
 
                 // Inject dummy resources so user's manual notif.json testing doesn't break HyperOS rendering
@@ -395,25 +369,11 @@ class PlaygroundService : Service() {
                         paramV2.put("enableFloat", false)
                         paramV2.put("islandFirstFloat", false)
                         
-                        // Inject hintInfo based on render existence
-                        if (rvRenderBitmap != null) {
-                            paramV2.put("hintInfo", org.json.JSONObject().apply {
-                                put("type", 2)
-                                put("title", " ")
-                                put("content", " ")
-                            })
-                        } else if (!subtext.isNullOrBlank()) {
+                        // Inject hintInfo if subtext exists
+                        if (!subtext.isNullOrBlank()) {
                             paramV2.put("hintInfo", org.json.JSONObject().apply {
                                 put("type", 1)
                                 put("title", subtext)
-                            })
-                        }
-                        
-                        // Inject bgInfo if RemoteViews render exists
-                        if (rvRenderBitmap != null) {
-                            paramV2.put("bgInfo", org.json.JSONObject().apply {
-                                put("type", 1)
-                                put("picBg", "miui.focus.pic_rv_view")
                             })
                         }
                         

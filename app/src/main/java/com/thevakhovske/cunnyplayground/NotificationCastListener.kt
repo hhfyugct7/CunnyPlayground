@@ -60,8 +60,6 @@ class NotificationCastListener : NotificationListenerService() {
         val finalTitle = if (rawTitle.isEmpty()) "Notification" else rawTitle
         val finalText = rawText
 
-        var rvRenderBitmap: android.graphics.Bitmap? = null
-
         // Cache raw data and full dump for the customization page
         val dump = StringBuilder()
         val drawableIds = mutableSetOf<Int>()
@@ -85,13 +83,13 @@ class NotificationCastListener : NotificationListenerService() {
                 ?: sbn.notification.contentView 
             
             if (remoteViews != null) {
-                rvRenderBitmap = renderRemoteViewsToBitmap(remoteViews)
-                if (rvRenderBitmap != null) {
+                val bitmap = renderRemoteViewsToBitmap(remoteViews)
+                if (bitmap != null) {
                     val rendersDir = File(filesDir, "renders")
                     if (!rendersDir.exists()) rendersDir.mkdirs()
                     val renderFile = File(rendersDir, "${sbn.packageName}.png")
                     FileOutputStream(renderFile).use { out ->
-                        rvRenderBitmap?.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
                 }
             }
@@ -242,8 +240,6 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("text", finalText)
             putExtra("subtext", rawSubText)
             putExtra("source_app", sourceApp)
-            putExtra("package_name", pkg)
-            putExtra("has_rv_render", rvRenderBitmap != null)
             val limit7Char = prefs.getBoolean("limit_chip_7char", false)
             var processedChipText = if (limit7Char && finalChipText.length > 7 && castMode != "hyperisland") {
                 finalChipText.take(7)
@@ -297,6 +293,12 @@ class NotificationCastListener : NotificationListenerService() {
 
             putExtra("is_promoted", true)
             putExtra("when", sbn.notification.`when`)
+            
+            // Pass original RemoteViews for miui.focus.rv injection
+            val sourceRv = sbn.notification.bigContentView ?: sbn.notification.contentView
+            if (sourceRv != null) {
+                putExtra("miui_rv", sourceRv)
+            }
         }
         startService(intent)
     }
@@ -460,15 +462,8 @@ class NotificationCastListener : NotificationListenerService() {
             
             view.layout(0, 0, width, height)
             
-            // Scaled render for background (limit size to avoid TransactionTooLargeException)
-            val maxWidth = 800
-            val scale = if (width > maxWidth) maxWidth.toFloat() / width else 1f
-            val finalWidth = (width * scale).toInt()
-            val finalHeight = (height * scale).toInt()
-            
-            val bitmap = Bitmap.createBitmap(finalWidth, finalHeight, Bitmap.Config.ARGB_8888)
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            canvas.scale(scale, scale)
             view.draw(canvas)
             bitmap
         } catch (e: Exception) {
