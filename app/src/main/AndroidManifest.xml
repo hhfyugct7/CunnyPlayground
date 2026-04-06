@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
         
     <application
         android:name=".CunnyPlaygroundApp"
@@ -49,6 +50,14 @@
 
         <activity android:name=".AppPickerActivity" />
         <activity android:name=".AppConfigActivity" />
+
+        <receiver
+            android:name=".HyperCommandReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.thevakhovske.cunnyplayground.SEND_HYPER" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

@@ -24,7 +24,7 @@ class NotificationCastListener : NotificationListenerService() {
         // Check app filter (if set)
         val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
         if (enabledApps != null && !enabledApps.contains(sbn.packageName)) {
-            Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (not in filter)")
+            //Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (not in filter)")
             return
         }
 
@@ -38,14 +38,14 @@ class NotificationCastListener : NotificationListenerService() {
         val rawSubText = subTextExtra?.toString()?.trim() ?: ""
 
         if (rawTitle.isEmpty() && rawText.isEmpty()) {
-            Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (no title/text)")
+            //Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (no title/text)")
             return
         }
 
         // Edge case: if title or text is exactly the package name, ignore
         val pkg = sbn.packageName
         if (rawTitle.equals(pkg, ignoreCase = true) || rawText.equals(pkg, ignoreCase = true)) {
-            Log.d("NotificationCast", "Skipping notification from $pkg (content matches package name)")
+            //Log.d("NotificationCast", "Skipping notification from $pkg (content matches package name)")
             return
         }
 
@@ -77,7 +77,7 @@ class NotificationCastListener : NotificationListenerService() {
             sbn.packageName
         }
 
-        Log.d("NotificationCast", "Casting notification from $sourceApp (${sbn.packageName})")
+        //Log.d("NotificationCast", "Casting notification from $sourceApp (${sbn.packageName})")
 
         // Read per-app customization
         val castMode = prefs.getString("cast_mode", "live_updates")
@@ -197,11 +197,11 @@ class NotificationCastListener : NotificationListenerService() {
         val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|P:$progress/$progressMax/$isIndeterminate"
         
         if (castMode == "hyperisland") {
-            Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
+            //Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
         }
 
         if (lastNotificationContent[castId] == contentKey) {
-            // Log.d("NotificationCast", "Skipping redundant update for $sourceApp ($pkg)")
+            // //Log.d("NotificationCast", "Skipping redundant update for $sourceApp ($pkg)")
             return
         }
         lastNotificationContent[castId] = contentKey
@@ -211,6 +211,7 @@ class NotificationCastListener : NotificationListenerService() {
             action = PlaygroundService.ACTION_START
             putExtra("title", finalTitle)
             putExtra("text", finalText)
+            putExtra("subtext", rawSubText)
             putExtra("source_app", sourceApp)
             val limit7Char = prefs.getBoolean("limit_chip_7char", false)
             var processedChipText = if (limit7Char && finalChipText.length > 7 && castMode != "hyperisland") {
@@ -397,7 +398,7 @@ class NotificationCastListener : NotificationListenerService() {
             // Finalize Discovered Actions: Pair Intent with the nearest Text
             for ((vid, intent) in viewIdToIntent) {
                 val titleString = viewIdToText[vid] ?: "Action"
-                Log.d("NotificationCast", "Found interactive button in RemoteViews: $titleString")
+                //Log.d("NotificationCast", "Found interactive button in RemoteViews: $titleString")
                 val action = if (Build.VERSION.SDK_INT >= 23) {
                     Notification.Action.Builder(null, titleString, intent).build()
                 } else {
@@ -442,7 +443,7 @@ class NotificationCastListener : NotificationListenerService() {
         // Clear deduping cache
         lastNotificationContent.remove(castId)
 
-        Log.d("NotificationCast", "Removing cast notification for ${sbn.packageName} (ID: $castId)")
+        //Log.d("NotificationCast", "Removing cast notification for ${sbn.packageName} (ID: $castId)")
 
         // Send cancel action to PlaygroundService
         val intent = Intent(this, PlaygroundService::class.java).apply {

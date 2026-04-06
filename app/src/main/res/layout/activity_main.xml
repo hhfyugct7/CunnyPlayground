@@ -73,6 +73,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:hint="Content Subtext">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etSubText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:hint="Status Chip Text">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etStatusChipText"
@@ -213,6 +225,18 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Testing Island Rendering..." />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Content Subtext (Expanded)">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etHSubText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout

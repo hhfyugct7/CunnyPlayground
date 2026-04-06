@@ -30,6 +30,7 @@ class PlaygroundService : Service() {
     }
 
     private val activeIds = mutableSetOf<Int>()
+    private var isForegroundActive = false
     private lateinit var notificationManager: NotificationManager
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -40,12 +41,39 @@ class PlaygroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!isForegroundActive) {
+            createNotificationChannel(CHANNEL_ID)
+            val anchorNotification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Background notification")
+                .setContentText("Ignore")
+                .setSmallIcon(R.mipmap.ic_launcher_round)
+                .setSilent(true)
+                .setOngoing(true)
+                .build()
+
+            if (Build.VERSION.SDK_INT >= 29) {
+                try {
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        startForeground(9999, anchorNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                    } else {
+                        startForeground(9999, anchorNotification)
+                    }
+                } catch (e: Exception) {
+                    startForeground(9999, anchorNotification)
+                }
+            } else {
+                startForeground(9999, anchorNotification)
+            }
+            isForegroundActive = true
+        }
+
         when (intent?.action) {
             ACTION_START -> startPromotedNotification(intent)
             ACTION_CANCEL -> cancelNotification(intent)
             ACTION_STOP -> {
                 activeIds.forEach { notificationManager.cancel(it) }
                 activeIds.clear()
+                stopForeground(true)
                 stopSelf()
             }
         }
@@ -57,15 +85,13 @@ class PlaygroundService : Service() {
         if (id != -1) {
             notificationManager.cancel(id)
             activeIds.remove(id)
-            if (activeIds.isEmpty()) {
-                stopSelf()
-            }
         }
     }
 
     private fun startPromotedNotification(intent: Intent) {
         val title = intent.getStringExtra("title") ?: "Ongoing Task"
         val text = intent.getStringExtra("text") ?: "Live Update Active"
+        val subtext = intent.getStringExtra("subtext")
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
@@ -193,37 +219,45 @@ class PlaygroundService : Service() {
 
         if (castMode == "hyperisland") {
             try {
+                // Initialize builder early to supply resources unconditionally
+                val hyperBuilder = io.github.d4viddf.hyperisland_kit.HyperIslandNotification.Builder(
+                    this,
+                    "live_updates_recaster",
+                    "Incoming Notification"
+                )
+                
+                val hPic = if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                    io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", iconObj)
+                } else {
+                    io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", this, iconRes)
+                }
+                hyperBuilder.addPicture(hPic)
+                
+                // Register LargeIcon if available for heads-up/expanded views
+                if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
+                    hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("big_icon", largeIconObj))
+                } else if (largeIconBitmap != null) {
+                    hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("big_icon", largeIconBitmap))
+                }
+
+                // Inject dummy resources so user's manual notif.json testing doesn't break HyperOS rendering
+                hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("file_preview", this, iconRes))
+                hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("upload_status", this, iconRes))
+
                 val rawJson = intent.getStringExtra("raw_hyper_json")
                 if (!rawJson.isNullOrBlank()) {
                     builder.extras.putString("miui.focus.param", rawJson)
+                    builder.extras.putAll(hyperBuilder.buildResourceBundle())
+                    
                     // We still need to set some defaults for the notification shade part
                     builder.setSmallIcon(iconRes)
                     builder.setContentTitle(title)
                     builder.setContentText(text)
                 } else if (io.github.d4viddf.hyperisland_kit.HyperIslandNotification.isSupported(this)) {
-                    val hyperBuilder = io.github.d4viddf.hyperisland_kit.HyperIslandNotification.Builder(
-                        this,
-                        "live_updates_recaster",
-                        "Incoming Notification"
-                    )
-                    
-                    val hPic = if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
-                        io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", iconObj)
-                    } else {
-                        io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", this, iconRes)
-                    }
-                    hyperBuilder.addPicture(hPic)
-                    
-                    // Register LargeIcon if available for heads-up/expanded views
-                    if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
-                        hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("miui.focus.pic_big_icon", largeIconObj))
-                    } else if (largeIconBitmap != null) {
-                        hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("miui.focus.pic_big_icon", largeIconBitmap))
-                    }
 
                     hyperBuilder.setBaseInfo(
                         title = title,
-                        content = text,
+                        content = if (subtext.isNullOrBlank()) text else "$text • $subtext",
                         pictureKey = null
                     )
                     val islandText = statusChipText?.takeIf { it.isNotBlank() } ?: title
@@ -334,6 +368,50 @@ class PlaygroundService : Service() {
                         
                         paramV2.put("enableFloat", false)
                         paramV2.put("islandFirstFloat", false)
+                        
+                        // Implement Progress Bar Support (Manual Injection)
+                        val progress = intent.getIntExtra("progress", 0)
+                        val progressMax = intent.getIntExtra("progress_max", 0)
+                        if (showProgress && progressMax > 0) {
+                            val progressPercent = (progress * 100) / progressMax
+                            
+                            // 1. Root Progress
+                            val rootProgressInfo = org.json.JSONObject().apply {
+                                put("progress", progressPercent)
+                                put("colorProgress", "#34C759")
+                            }
+                            paramV2.put("progressInfo", rootProgressInfo)
+                            
+                            // 2. Small Island Progress (requires combinePicInfo wrapper)
+                            val paramIsland = paramV2.optJSONObject("param_island")
+                            val smallArea = paramIsland?.optJSONObject("smallIslandArea")
+                            val picInfo = smallArea?.optJSONObject("picInfo")
+                            if (smallArea != null && picInfo != null) {
+                                val combinePicInfo = org.json.JSONObject().apply {
+                                    put("picInfo", picInfo)
+                                    put("progressInfo", org.json.JSONObject().apply {
+                                        put("progress", progressPercent)
+                                        put("colorReach", "#34C759")
+                                        put("isCCW", false)
+                                    })
+                                }
+                                smallArea.remove("picInfo")
+                                smallArea.put("combinePicInfo", combinePicInfo)
+                            }
+                            
+                            // 3. Big Island Progress (requires progressTextInfo block)
+                            val bigArea = paramIsland?.optJSONObject("bigIslandArea")
+                            if (bigArea != null) {
+                                val progressTextInfo = org.json.JSONObject().apply {
+                                    put("progressInfo", org.json.JSONObject().apply {
+                                        put("progress", progressPercent)
+                                        put("colorReach", "#34C759")
+                                        put("isCCW", true)
+                                    })
+                                }
+                                bigArea.put("progressTextInfo", progressTextInfo)
+                            }
+                        }
                     }
                     val jsonPayload = jsonObj.toString()
                     val resBundle = hyperBuilder.buildResourceBundle()
@@ -347,26 +425,7 @@ class PlaygroundService : Service() {
         }
 
         val notification = builder.build()
-        
-        // Use startForeground for the first one to keep service alive
-        if (activeIds.size == 1) {
-            if (Build.VERSION.SDK_INT >= 29) {
-                try {
-                    if (Build.VERSION.SDK_INT >= 34) {
-                        startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-                    } else {
-                        startForeground(notificationId, notification)
-                    }
-                } catch (e: Exception) {
-                    startForeground(notificationId, notification)
-                }
-            } else {
-                startForeground(notificationId, notification)
-            }
-        } else {
-            // Just notify for others
-            notificationManager.notify(notificationId, notification)
-        }
+        notificationManager.notify(notificationId, notification)
     }
 
     private fun createNotificationChannel(channelId: String) {

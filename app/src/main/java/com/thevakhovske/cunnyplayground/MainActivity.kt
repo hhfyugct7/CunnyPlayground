@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etTitle: EditText
     private lateinit var etText: EditText
+    private lateinit var etSubText: EditText
     private lateinit var etStatusChipText: EditText
     private lateinit var cbOngoing: com.google.android.material.checkbox.MaterialCheckBox
     private lateinit var cbPromoted: com.google.android.material.checkbox.MaterialCheckBox
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     // HyperIsland Fields
     private lateinit var etHTitle: EditText
     private lateinit var etHText: EditText
+    private lateinit var etHSubText: EditText
     private lateinit var etHLeftText: EditText
     private lateinit var etHMainText: EditText
     private lateinit var etHyperRawJson: EditText
@@ -247,6 +249,7 @@ class MainActivity : AppCompatActivity() {
 
         etTitle = findViewById(R.id.etTitle)
         etText = findViewById(R.id.etText)
+        etSubText = findViewById(R.id.etSubText)
         etStatusChipText = findViewById(R.id.etStatusChipText)
         cbOngoing = findViewById(R.id.cbOngoing)
         cbPromoted = findViewById(R.id.cbPromoted)
@@ -263,6 +266,7 @@ class MainActivity : AppCompatActivity() {
         // HyperIsland
         etHTitle = findViewById(R.id.etHTitle)
         etHText = findViewById(R.id.etHText)
+        etHSubText = findViewById(R.id.etHSubText)
         etHLeftText = findViewById(R.id.etHLeftText)
         etHMainText = findViewById(R.id.etHMainText)
         etHyperRawJson = findViewById(R.id.etHyperRawJson)
@@ -397,6 +401,7 @@ class MainActivity : AppCompatActivity() {
 
         val title = etTitle.text.toString()
         val text = etText.text.toString() + (if (idToUpdate != null) " (Updated)" else "")
+        val subtext = etSubText.text.toString()
         val statusChipText = etStatusChipText.text.toString()
         
         val notificationId = idToUpdate ?: ++lastId
@@ -433,6 +438,7 @@ class MainActivity : AppCompatActivity() {
             action = PlaygroundService.ACTION_START
             putExtra("title", title)
             putExtra("text", text)
+            putExtra("subtext", subtext)
             putExtra("status_chip_text", statusChipText)
             putExtra("id", notificationId)
             putExtra("icon_res", iconRes)
@@ -465,6 +471,7 @@ class MainActivity : AppCompatActivity() {
 
         val title = etHTitle.text.toString()
         val text = etHText.text.toString()
+        val subtext = etHSubText.text.toString()
         val leftText = etHLeftText.text.toString()
         val hyperMainText = etHMainText.text.toString()
         val rawJson = etHyperRawJson.text.toString()
@@ -482,6 +489,7 @@ class MainActivity : AppCompatActivity() {
             action = PlaygroundService.ACTION_START
             putExtra("title", title)
             putExtra("text", text)
+            putExtra("subtext", subtext)
             putExtra("hyper_left_text", leftText)
             putExtra("hyper_main_text", hyperMainText)
             putExtra("raw_hyper_json", rawJson)
