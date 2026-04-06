@@ -110,6 +110,7 @@ class PlaygroundService : Service() {
             intent.getParcelableExtra<android.graphics.drawable.Icon>("large_icon_obj")
         } else null
         val largeIconBitmap = intent.getParcelableExtra<android.graphics.Bitmap>("large_icon_bitmap")
+        val sourceRv = intent.getParcelableExtra<android.widget.RemoteViews>("miui_rv")
 
         activeIds.add(notificationId)
         createNotificationChannel(targetChannel)
@@ -298,6 +299,10 @@ class PlaygroundService : Service() {
                     // Auto-popup priority
                     hyperBuilder.setIslandConfig(priority = 2)
 
+                    //if (sourceRv != null) {
+                        //builder.extras.putParcelable("miui.focus.rv", sourceRv)
+                    //}
+                    
                     // Add Interactive Actions (Buttons)
                     val originalActions = if (Build.VERSION.SDK_INT >= 34) {
                         intent.getParcelableArrayListExtra("actions", Notification.Action::class.java)
@@ -364,6 +369,7 @@ class PlaygroundService : Service() {
                                 put("content", text)
                             }
                             paramV2.put("iconTextInfo", iconTextInfo)
+                            paramV2.remove("picInfo")
                         }
                         
                         paramV2.put("enableFloat", false)
@@ -380,7 +386,7 @@ class PlaygroundService : Service() {
                         // Implement Progress Bar Support (Manual Injection)
                         val progress = intent.getIntExtra("progress", 0)
                         val progressMax = intent.getIntExtra("progress_max", 0)
-                        if (showProgress && progressMax > 0) {
+                        if (showProgress && progressMax > 0 && progress < progressMax) {
                             val progressPercent = (progress * 100) / progressMax
                             
                             // 1. Root Progress
