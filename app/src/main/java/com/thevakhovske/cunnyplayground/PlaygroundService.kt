@@ -91,9 +91,9 @@ class PlaygroundService : Service() {
     }
 
     private fun startPromotedNotification(intent: Intent) {
-        val title = intent.getStringExtra("title") ?: "Ongoing Task"
-        val text = intent.getStringExtra("text") ?: "Live Update Active"
-        val subtext = intent.getStringExtra("subtext")
+        var title = intent.getStringExtra("title") ?: "Ongoing Task"
+        var text = intent.getStringExtra("text") ?: "Live Update Active"
+        var subtext = intent.getStringExtra("subtext") ?: ""
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
@@ -124,6 +124,12 @@ class PlaygroundService : Service() {
             } catch (e: Exception) { null }
         } else {
             intent.getParcelableExtra<android.graphics.Bitmap>("rv_render")
+        }
+
+        if (rvRenderBitmap != null) {
+            title = " "
+            text = " "
+            subtext = " "
         }
 
         activeIds.add(notificationId)
@@ -389,8 +395,14 @@ class PlaygroundService : Service() {
                         paramV2.put("enableFloat", false)
                         paramV2.put("islandFirstFloat", false)
                         
-                        // Inject hintInfo if subtext exists
-                        if (!subtext.isNullOrBlank()) {
+                        // Inject hintInfo based on render existence
+                        if (rvRenderBitmap != null) {
+                            paramV2.put("hintInfo", org.json.JSONObject().apply {
+                                put("type", 2)
+                                put("title", " ")
+                                put("content", " ")
+                            })
+                        } else if (!subtext.isNullOrBlank()) {
                             paramV2.put("hintInfo", org.json.JSONObject().apply {
                                 put("type", 1)
                                 put("title", subtext)
