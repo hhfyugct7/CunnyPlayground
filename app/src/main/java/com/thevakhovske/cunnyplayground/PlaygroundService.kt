@@ -111,6 +111,7 @@ class PlaygroundService : Service() {
         } else null
         val largeIconBitmap = intent.getParcelableExtra<android.graphics.Bitmap>("large_icon_bitmap")
         val sourceRv = intent.getParcelableExtra<android.widget.RemoteViews>("miui_rv")
+        val segmentsCount = intent.getIntExtra("progress_segments", 0)
 
         activeIds.add(notificationId)
         createNotificationChannel(targetChannel)
@@ -388,13 +389,23 @@ class PlaygroundService : Service() {
                         val progressMax = intent.getIntExtra("progress_max", 0)
                         if (showProgress && progressMax > 0 && progress < progressMax) {
                             val progressPercent = (progress * 100) / progressMax
+                            val hasSegments = segmentsCount > 0
                             
                             // 1. Root Progress
-                            val rootProgressInfo = org.json.JSONObject().apply {
-                                put("progress", progressPercent)
-                                put("colorProgress", "#34C759")
+                            if (hasSegments) {
+                                val multiProgressInfo = org.json.JSONObject().apply {
+                                    put("progress", progressPercent)
+                                    put("points", segmentsCount)
+                                    put("color", "#34C759")
+                                }
+                                paramV2.put("multiProgressInfo", multiProgressInfo)
+                            } else {
+                                val rootProgressInfo = org.json.JSONObject().apply {
+                                    put("progress", progressPercent)
+                                    put("colorProgress", "#34C759")
+                                }
+                                paramV2.put("progressInfo", rootProgressInfo)
                             }
-                            paramV2.put("progressInfo", rootProgressInfo)
                             
                             // 2. Small Island Progress (requires combinePicInfo wrapper)
                             val paramIsland = paramV2.optJSONObject("param_island")
@@ -403,10 +414,10 @@ class PlaygroundService : Service() {
                             if (smallArea != null && picInfo != null) {
                                 val combinePicInfo = org.json.JSONObject().apply {
                                     put("picInfo", picInfo)
-                                    put("progressInfo", org.json.JSONObject().apply {
+                                    val progKey = "progressInfo"
+                                    put(progKey, org.json.JSONObject().apply {
                                         put("progress", progressPercent)
                                         put("colorReach", "#34C759")
-                                        put("isCCW", false)
                                     })
                                 }
                                 smallArea.remove("picInfo")
@@ -417,10 +428,10 @@ class PlaygroundService : Service() {
                             val bigArea = paramIsland?.optJSONObject("bigIslandArea")
                             if (bigArea != null) {
                                 val progressTextInfo = org.json.JSONObject().apply {
-                                    put("progressInfo", org.json.JSONObject().apply {
+                                    val progKey = "progressInfo"
+                                    put(progKey, org.json.JSONObject().apply {
                                         put("progress", progressPercent)
                                         put("colorReach", "#34C759")
-                                        put("isCCW", true)
                                     })
                                 }
                                 bigArea.put("progressTextInfo", progressTextInfo)

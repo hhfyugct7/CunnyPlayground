@@ -198,6 +198,15 @@ class NotificationCastListener : NotificationListenerService() {
         val progressMax = extras.getInt("android.progressMax", 0)
         val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false)
         val hasProgress = progressMax > 0 || isIndeterminate
+        
+        // Extract multi-segment progress
+        val segments = if (Build.VERSION.SDK_INT >= 33) {
+            extras.getParcelableArrayList("android.progressSegments", android.os.Bundle::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            extras.getParcelableArrayList<android.os.Bundle>("android.progressSegments")
+        }
+        val segmentsCount = if (segments != null) (segments.size).coerceAtLeast(0) else 0
 
         // Extract Large Icon
         val largeIcon = extras.get("android.largeIcon")
@@ -276,6 +285,7 @@ class NotificationCastListener : NotificationListenerService() {
                 putExtra("progress_max", progressMax)
                 putExtra("progress_indeterminate", isIndeterminate)
                 putExtra("show_progress", true)
+                putExtra("progress_segments", segmentsCount)
             } else {
                 putExtra("show_progress", false)
             }
