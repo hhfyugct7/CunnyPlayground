@@ -1,142 +1,157 @@
 package com.thevakhovske.cunnyplayground
 
-import android.content.pm.ApplicationInfo
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.widget.CheckBox
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 
-class AppPickerActivity : AppCompatActivity() {
-
-    private lateinit var rvApps: RecyclerView
-    private lateinit var searchView: androidx.appcompat.widget.SearchView
-    private val selectedApps = mutableSetOf<String>()
-    
-    private var allApps = listOf<AppInfo>()
-    private var displayApps = mutableListOf<AppInfo>()
+class AppPickerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Enable Edge-to-Edge
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        
-        setContentView(R.layout.activity_app_picker)
+        enableEdgeToEdge()
 
-        // Handle Window Insets
-        val root = findViewById<View>(R.id.rootAppPicker)
-        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
-        
-        rvApps = findViewById(R.id.rvApps)
-        rvApps.layoutManager = LinearLayoutManager(this)
-        
-        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbarAppPicker)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Select Apps to Cast"
-        toolbar.setNavigationOnClickListener { finish() }
-        
-        searchView = findViewById(R.id.searchApps)
-        searchView.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean = false
-            override fun onQueryTextChange(newText: String?): Boolean {
-                filterApps(newText ?: "")
-                return true
+        setContent {
+            val controller = remember { ThemeController(ColorSchemeMode.System) }
+            MiuixTheme(controller = controller) {
+                AppPickerScreen(onBack = { finish() })
             }
-        })
+        }
+    }
+}
 
-        supportActionBar?.title = "Select Apps to Cast"
+data class AppInfo(val name: String, val packageName: String, val icon: Drawable)
 
-        val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
-        selectedApps.addAll(prefs.getStringSet("cast_enabled_apps", emptySet()) ?: emptySet())
+@Composable
+fun AppPickerScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val pm = context.packageManager
+    val prefs = context.getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
 
-        loadApps()
+    var searchQuery by remember { mutableStateOf("") }
+    val selectedApps = remember {
+        mutableStateListOf<String>().apply {
+            addAll(prefs.getStringSet("cast_enabled_apps", emptySet()) ?: emptySet())
+        }
     }
 
-    private fun loadApps() {
-        val pm = packageManager
-        allApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+    val allApps = remember {
+        pm.getInstalledApplications(PackageManager.GET_META_DATA)
             .map { AppInfo(it.loadLabel(pm).toString(), it.packageName, it.loadIcon(pm)) }
             .sortedBy { it.name.lowercase() }
-        
-        displayApps.clear()
-        displayApps.addAll(allApps)
-        rvApps.adapter = AppAdapter(displayApps)
     }
 
-    private fun filterApps(query: String) {
-        val filtered = if (query.isEmpty()) {
-            allApps
-        } else {
-            allApps.filter { 
-                it.name.contains(query, ignoreCase = true) || 
-                it.packageName.contains(query, ignoreCase = true)
-            }
+    val displayApps = remember(searchQuery) {
+        if (searchQuery.isEmpty()) allApps
+        else allApps.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+            it.packageName.contains(searchQuery, ignoreCase = true)
         }
-        
-        displayApps.clear()
-        displayApps.addAll(filtered)
-        rvApps.adapter?.notifyDataSetChanged()
     }
 
-    private fun saveSelection() {
-        getSharedPreferences("experimental_prefs", MODE_PRIVATE)
-            .edit()
-            .putStringSet("cast_enabled_apps", HashSet(selectedApps))
-            .apply()
-    }
+    val topAppBarScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
 
-    inner class AppAdapter(private val items: List<AppInfo>) : RecyclerView.Adapter<AppAdapter.ViewHolder>() {
-        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val ivIcon: ImageView = view.findViewById(R.id.ivAppIcon)
-            val tvName: TextView = view.findViewById(R.id.tvAppName)
-            val tvPackage: TextView = view.findViewById(R.id.tvPackageName)
-            val cbSelected: com.google.android.material.checkbox.MaterialCheckBox = view.findViewById(R.id.cbAppSelected)
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_app, parent, false)
-            return ViewHolder(view)
-        }
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val item = items[position]
-            holder.ivIcon.setImageDrawable(item.icon)
-            holder.tvName.text = item.name
-            holder.tvPackage.text = item.packageName
-            holder.cbSelected.isChecked = selectedApps.contains(item.packageName)
-
-            val toggleAction = {
-                if (selectedApps.contains(item.packageName)) {
-                    selectedApps.remove(item.packageName)
-                } else {
-                    selectedApps.add(item.packageName)
+    Scaffold(
+        topBar = {
+            SmallTopAppBar(
+                title = "Select Apps",
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(MiuixIcons.Back, contentDescription = "Back")
+                    }
                 }
-                saveSelection()
-                notifyItemChanged(position)
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            contentPadding = paddingValues,
+            modifier = Modifier
+                .fillMaxSize()
+                .scrollEndHaptic()
+        ) {
+            item {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = "Search apps...",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
 
-            holder.itemView.setOnClickListener { toggleAction() }
-            holder.cbSelected.setOnClickListener { toggleAction() }
+            item {
+                Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                    displayApps.forEach { app ->
+                        val isSelected = selectedApps.contains(app.packageName)
+                        BasicComponent(
+                            title = app.name,
+                            summary = app.packageName,
+                            startAction = {
+                                Image(
+                                    painter = BitmapPainter(app.icon.toBitmap().asImageBitmap()),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            },
+                            endActions = {
+                                Checkbox(
+                                    state = if (isSelected) ToggleableState.On else ToggleableState.Off,
+                                    onClick = {
+                                        if (isSelected) {
+                                            selectedApps.remove(app.packageName)
+                                        } else {
+                                            selectedApps.add(app.packageName)
+                                        }
+                                        prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                    }
+                                )
+                            },
+                            onClick = {
+                                if (isSelected) {
+                                    selectedApps.remove(app.packageName)
+                                } else {
+                                    selectedApps.add(app.packageName)
+                                }
+                                prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                            }
+                        )
+                    }
+                }
+            }
         }
-
-        override fun getItemCount() = items.size
     }
-
-    data class AppInfo(val name: String, val packageName: String, val icon: Drawable)
 }

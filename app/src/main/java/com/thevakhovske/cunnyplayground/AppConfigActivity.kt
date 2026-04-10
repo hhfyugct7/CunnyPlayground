@@ -1,369 +1,420 @@
 package com.thevakhovske.cunnyplayground
 
-import android.content.SharedPreferences
-import android.content.pm.PackageManager
-import android.os.Bundle
-import android.widget.*
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.BitmapFactory
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.Card
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SmallTitle
+import top.yukonga.miuix.kmp.basic.SmallTopAppBar
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.extended.Back
+import top.yukonga.miuix.kmp.preference.RadioButtonPreference
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import java.io.File
-import androidx.appcompat.app.AppCompatActivity
 
-class AppConfigActivity : AppCompatActivity() {
-
-    private lateinit var prefs: SharedPreferences
-    private lateinit var packageName: String
+class AppConfigActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Enable Edge-to-Edge
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        
-        setContentView(R.layout.activity_app_config)
+        enableEdgeToEdge()
 
-        // Handle Window Insets
-        val rootLayout = findViewById<android.view.View>(R.id.rootConfigContainer)
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { v, insets ->
-            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
+        val packageName = intent.getStringExtra("package_name") ?: run { finish(); return }
+
+        setContent {
+            val controller = remember { ThemeController(ColorSchemeMode.System) }
+            MiuixTheme(controller = controller) {
+                AppConfigScreen(packageName, onBack = { finish() }, onSave = { finish() })
+            }
         }
-
-        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbarConfig)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        toolbar.navigationIcon?.setTint(android.graphics.Color.WHITE)
-        toolbar.setNavigationOnClickListener { finish() }
-
-        packageName = intent.getStringExtra("package_name") ?: finish().run { return }
-        prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
-
-        setupUI()
     }
+}
 
-    private fun setupUI() {
-        val ivIcon: ImageView = findViewById(R.id.ivConfigAppIcon)
-        val tvName: TextView = findViewById(R.id.tvConfigAppName)
-        val tvRawTitle: TextView = findViewById(R.id.tvRawTitle)
-        val tvRawText: TextView = findViewById(R.id.tvRawText)
-        val tvRawSubText: TextView = findViewById(R.id.tvRawSubText)
-        val tvRawDump: TextView = findViewById(R.id.tvRawDump)
+@Composable
+fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit) {
+    val context = LocalContext.current
+    val pm = context.packageManager
+    val prefs = context.getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
 
-        // Load App Info
+    var appLabel by remember { mutableStateOf(packageName) }
+    var appIcon by remember { mutableStateOf<android.graphics.drawable.Drawable?>(null) }
+
+    LaunchedEffect(packageName) {
         try {
-            val appInfo = packageManager.getApplicationInfo(packageName, 0)
-            ivIcon.setImageDrawable(appInfo.loadIcon(packageManager))
-            tvName.text = appInfo.loadLabel(packageManager)
-        } catch (e: Exception) {
-            tvName.text = packageName
-        }
-
-        // Load Raw Data
-        val lastTitle = prefs.getString("${packageName}_last_title", "N/A")
-        val lastText = prefs.getString("${packageName}_last_text", "N/A")
-        val lastSubText = prefs.getString("${packageName}_last_subtext", "N/A")
-        val lastDump = prefs.getString("${packageName}_last_raw_dump", "Waiting for next interception...")
-        tvRawTitle.text = "Title: $lastTitle"
-        tvRawText.text = "Text: $lastText"
-        tvRawSubText.text = "SubText: $lastSubText"
-        tvRawDump.text = lastDump
-
-        // Copy Dump Logic
-        findViewById<Button>(R.id.btnCopyDump).setOnClickListener {
-            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("Notification Dump", lastDump)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "Dump copied to clipboard", Toast.LENGTH_SHORT).show()
-        }
-
-        // Load Render Preview
-        val renderFile = File(filesDir, "renders/${packageName}.png")
-        val ivPreview: ImageView = findViewById(R.id.ivNotificationPreview)
-        val cvPreview: androidx.cardview.widget.CardView = findViewById(R.id.cvNotificationPreview)
-        val tvLabelPreview: TextView = findViewById(R.id.tvLabelPreview)
-
-        if (renderFile.exists()) {
-            try {
-                val bitmap = BitmapFactory.decodeFile(renderFile.absolutePath)
-                ivPreview.setImageBitmap(bitmap)
-                cvPreview.visibility = android.view.View.VISIBLE
-                tvLabelPreview.visibility = android.view.View.VISIBLE
-            } catch (e: Exception) {
-                cvPreview.visibility = android.view.View.GONE
-                tvLabelPreview.visibility = android.view.View.GONE
-            }
-        } else {
-            cvPreview.visibility = android.view.View.GONE
-            tvLabelPreview.visibility = android.view.View.GONE
-        }
-
-        // Load Drawables
-        val drawablesStr = prefs.getString("${packageName}_last_drawables", "")
-        if (drawablesStr != null && drawablesStr.isNotEmpty()) {
-            val llDrawables: LinearLayout = findViewById(R.id.llNotificationDrawables)
-            llDrawables.removeAllViews()
-            val ids = drawablesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct()
-            
-            val sourceContext = try {
-                createPackageContext(packageName, 0)
-            } catch (e: Exception) {
-                null
-            }
-
-            if (sourceContext != null) {
-                for (id in ids) {
-                    try {
-                        val imageView = ImageView(this).apply {
-                            val size = (48 * resources.displayMetrics.density).toInt()
-                            layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                                marginEnd = (12 * resources.displayMetrics.density).toInt()
-                            }
-                            scaleType = ImageView.ScaleType.FIT_CENTER
-                            setImageDrawable(androidx.core.content.res.ResourcesCompat.getDrawable(sourceContext.resources, id, sourceContext.theme))
-                            setOnClickListener {
-                                val name = try { sourceContext.resources.getResourceEntryName(id) } catch (e: Exception) { id.toString() }
-                                Toast.makeText(context, "ID: $id\nName: $name", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                        llDrawables.addView(imageView)
-                    } catch (e: Exception) {
-                        // Skip if resource not found or invalid
-                    }
-                }
-            }
-        }
-
-        val castMode = prefs.getString("cast_mode", "live_updates")
-        val llLiveUpdates = findViewById<LinearLayout>(R.id.llLiveUpdatesConfig)
-        val llHyperIsland = findViewById<LinearLayout>(R.id.llHyperIslandConfig)
-
-        if (castMode == "hyperisland") {
-            llLiveUpdates.visibility = android.view.View.GONE
-            llHyperIsland.visibility = android.view.View.VISIBLE
-
-            fun getIndex(source: String): Int = when (source) {
-                "title" -> 0
-                "text" -> 1
-                "subtext" -> 2
-                "titletext" -> 3
-                else -> 1
-            }
-
-            val leftSource = prefs.getString("${packageName}_hyper_left_source", "title") ?: "title"
-            findViewById<Spinner>(R.id.spnHypLeftSource).setSelection(getIndex(leftSource))
-
-            val mainSource = prefs.getString("${packageName}_hyper_main_source", "text") ?: "text"
-            findViewById<Spinner>(R.id.spnHypMainSource).setSelection(getIndex(mainSource))
-
-            findViewById<EditText>(R.id.etHypLeftRegex).setText(prefs.getString("${packageName}_hyper_left_regex", ""))
-            findViewById<EditText>(R.id.etHypMainRegex).setText(prefs.getString("${packageName}_hyper_main_regex", ""))
-
-            val filterWatcher = object : android.text.TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updatePreview() }
-                override fun afterTextChanged(s: android.text.Editable?) {}
-            }
-            findViewById<EditText>(R.id.etHypLeftRegex).addTextChangedListener(filterWatcher)
-            findViewById<EditText>(R.id.etHypMainRegex).addTextChangedListener(filterWatcher)
-
-            val spinListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) { updatePreview() }
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
-            }
-            findViewById<Spinner>(R.id.spnHypLeftSource).onItemSelectedListener = spinListener
-            findViewById<Spinner>(R.id.spnHypMainSource).onItemSelectedListener = spinListener
-
-        } else {
-            llLiveUpdates.visibility = android.view.View.VISIBLE
-            llHyperIsland.visibility = android.view.View.GONE
-
-            val textSource = prefs.getString("${packageName}_text_source", "text")
-            val rgTextSource: RadioGroup = findViewById(R.id.rgTextSource)
-            when (textSource) {
-                "title" -> rgTextSource.check(R.id.rbSourceTitle)
-                "subtext" -> rgTextSource.check(R.id.rbSourceSubText)
-                "titletext" -> rgTextSource.check(R.id.rbSourceTitleText)
-                else -> rgTextSource.check(R.id.rbSourceText)
-            }
-            rgTextSource.setOnCheckedChangeListener { _, _ -> updatePreview() }
-
-            val etRegex: EditText = findViewById(R.id.etRegexFilter)
-            etRegex.setText(prefs.getString("${packageName}_regex_filter", ""))
-            etRegex.addTextChangedListener(object : android.text.TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updatePreview() }
-                override fun afterTextChanged(s: android.text.Editable?) {}
-            })
-        }
-
-        // Load Global Icon Settings
-        val currentIconSource = prefs.getString("${packageName}_icon_source", "default")
-        val rbExtracted = findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted)
-        val hasDrawables = !prefs.getString("${packageName}_last_drawables", "").isNullOrEmpty()
-
-        if (!hasDrawables) {
-            rbExtracted.isEnabled = false
-            rbExtracted.text = rbExtracted.text.toString() + " (No icons discovered yet)"
-        }
-
-        when (currentIconSource) {
-            "app" -> findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconApp).isChecked = true
-            "notification" -> findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked = true
-            "extracted" -> rbExtracted.isChecked = true
-            else -> {
-                // Default: uses global toggle
-            }
-        }
-
-        updatePreview()
-
-        findViewById<RadioGroup>(R.id.rgIconSource).setOnCheckedChangeListener { _, _ -> updatePreview() }
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            appLabel = appInfo.loadLabel(pm).toString()
+            appIcon = appInfo.loadIcon(pm)
+        } catch (_: Exception) {}
     }
 
-    private fun updatePreview() {
-        val tvPreviewText: TextView = findViewById(R.id.tvPreviewText)
-        val ivPreviewIcon: ImageView = findViewById(R.id.ivPreviewIcon)
+    val castMode = remember { prefs.getString("cast_mode", "live_updates") ?: "live_updates" }
 
-        fun applyRegex(rawText: String, regexStr: String): String {
-            if (regexStr.isEmpty()) return rawText
-            return try {
-                val regex = Regex(regexStr)
-                val match = regex.find(rawText)
-                if (match != null) {
-                    if (match.groups.size > 1) match.groupValues.drop(1).joinToString(" ") else match.value
-                } else rawText
-            } catch (e: Exception) { rawText }
-        }
+    var iconSource by remember { mutableStateOf(prefs.getString("${packageName}_icon_source", "default") ?: "default") }
 
-        fun getRawText(sourceString: String): String {
-            return when (sourceString) {
-                "title" -> prefs.getString("${packageName}_last_title", "Title") ?: ""
-                "subtext" -> prefs.getString("${packageName}_last_subtext", "SubText") ?: ""
-                "titletext" -> {
-                    val t = prefs.getString("${packageName}_last_title", "Title") ?: ""
-                    val txt = prefs.getString("${packageName}_last_text", "Text") ?: ""
-                    "$t • $txt"
-                }
-                else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
-            }
-        }
+    var hypLeftSource by remember { mutableStateOf(prefs.getString("${packageName}_hyper_left_source", "title") ?: "title") }
+    var hypMainSource by remember { mutableStateOf(prefs.getString("${packageName}_hyper_main_source", "text") ?: "text") }
+    var hypLeftRegex by remember { mutableStateOf(prefs.getString("${packageName}_hyper_left_regex", "") ?: "") }
+    var hypMainRegex by remember { mutableStateOf(prefs.getString("${packageName}_hyper_main_regex", "") ?: "") }
 
-        val castMode = prefs.getString("cast_mode", "live_updates")
-        if (castMode == "hyperisland") {
-            fun getSourceForIndex(index: Int): String = when (index) { 0 -> "title" 1 -> "text" 2 -> "subtext" 3 -> "titletext" else -> "text" }
-            val leftSource = getSourceForIndex(findViewById<Spinner>(R.id.spnHypLeftSource).selectedItemPosition)
-            val mainSource = getSourceForIndex(findViewById<Spinner>(R.id.spnHypMainSource).selectedItemPosition)
-            
-            val leftRaw = getRawText(leftSource)
-            val mainRaw = getRawText(mainSource)
-            
-            val leftF = applyRegex(leftRaw, findViewById<EditText>(R.id.etHypLeftRegex).text.toString())
-            val mainF = applyRegex(mainRaw, findViewById<EditText>(R.id.etHypMainRegex).text.toString())
-            
-            tvPreviewText.text = "L: $leftF  |  M: $mainF"
-        } else {
-            val rgTextSource = findViewById<RadioGroup>(R.id.rgTextSource)
-            val selectedTextSource = when (rgTextSource.checkedRadioButtonId) {
-                R.id.rbSourceTitle -> "title"
-                R.id.rbSourceSubText -> "subtext"
-                R.id.rbSourceTitleText -> "titletext"
-                else -> "text"
-            }
-            val raw = getRawText(selectedTextSource)
-            val regexStr = findViewById<EditText>(R.id.etRegexFilter).text.toString()
-            tvPreviewText.text = applyRegex(raw, regexStr)
-        }
+    var luTextSource by remember { mutableStateOf(prefs.getString("${packageName}_text_source", "text") ?: "text") }
+    var luRegex by remember { mutableStateOf(prefs.getString("${packageName}_regex_filter", "") ?: "") }
 
-        // Update Icon
-        val checkedIconId = findViewById<RadioGroup>(R.id.rgIconSource).checkedRadioButtonId
-        try {
-            val appInfo = packageManager.getApplicationInfo(packageName, 0)
-            when (checkedIconId) {
-                R.id.rbIconApp -> {
-                    ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
-                }
-                R.id.rbIconNotification -> {
-                    ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
-                }
-                R.id.rbIconExtracted -> {
-                    val drawablesStr = prefs.getString("${packageName}_last_drawables", "")
-                    val firstId = drawablesStr?.split(",")?.firstOrNull()?.trim()?.toIntOrNull()
-                    if (firstId != null) {
-                        try {
-                            val sourceContext = createPackageContext(packageName, 0)
-                            val drawable = androidx.core.content.res.ResourcesCompat.getDrawable(sourceContext.resources, firstId, sourceContext.theme)
-                            ivPreviewIcon.setImageDrawable(drawable)
-                        } catch (e: Exception) {
-                            ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
-                        }
-                    } else {
-                        ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
-                    }
-                }
-                else -> {
-                    ivPreviewIcon.setImageDrawable(appInfo.loadIcon(packageManager))
-                }
-            }
-        } catch (e: Exception) {
-            ivPreviewIcon.setImageDrawable(null)
-        }
+    val lastTitle = remember { prefs.getString("${packageName}_last_title", "N/A") ?: "N/A" }
+    val lastText = remember { prefs.getString("${packageName}_last_text", "N/A") ?: "N/A" }
+    val lastSubText = remember { prefs.getString("${packageName}_last_subtext", "N/A") ?: "N/A" }
+    val lastDump = remember { prefs.getString("${packageName}_last_raw_dump", "Waiting for next interception...") ?: "Waiting..." }
+
+    val drawablesStr = remember { prefs.getString("${packageName}_last_drawables", "") ?: "" }
+    val drawableIds = remember { drawablesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct() }
+
+    fun applyRegex(rawText: String, regexStr: String): String {
+        if (regexStr.isEmpty()) return rawText
+        return try {
+            val regex = Regex(regexStr)
+            val match = regex.find(rawText)
+            if (match != null) {
+                if (match.groups.size > 1) match.groupValues.drop(1).joinToString(" ") else match.value
+            } else rawText
+        } catch (_: Exception) { rawText }
     }
 
-    override fun onCreateOptionsMenu(menu: android.view.Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_app_config, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                finish()
-                true
-            }
-            R.id.action_save -> {
-                saveSettings()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    fun getRawText(source: String): String = when (source) {
+        "title" -> prefs.getString("${packageName}_last_title", "Title") ?: ""
+        "subtext" -> prefs.getString("${packageName}_last_subtext", "SubText") ?: ""
+        "titletext" -> {
+            val t = prefs.getString("${packageName}_last_title", "Title") ?: ""
+            val txt = prefs.getString("${packageName}_last_text", "Text") ?: ""
+            "$t • $txt"
         }
+        else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
     }
 
-    private fun saveSettings() {
-        val castMode = prefs.getString("cast_mode", "live_updates")
+    val previewText = if (castMode == "hyperisland") {
+        val leftF = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
+        val mainF = applyRegex(getRawText(hypMainSource), hypMainRegex)
+        "L: $leftF  |  M: $mainF"
+    } else {
+        applyRegex(getRawText(luTextSource), luRegex)
+    }
 
+    fun saveSettings() {
         prefs.edit().apply {
-            if (castMode == "hyperisland") {
-                fun getSourceForIndex(index: Int): String = when (index) { 0 -> "title" 1 -> "text" 2 -> "subtext" 3 -> "titletext" else -> "text" }
-                val spLeft = findViewById<Spinner>(R.id.spnHypLeftSource)
-                val spMain = findViewById<Spinner>(R.id.spnHypMainSource)
-                putString("${packageName}_hyper_left_source", getSourceForIndex(spLeft.selectedItemPosition))
-                putString("${packageName}_hyper_main_source", getSourceForIndex(spMain.selectedItemPosition))
-                putString("${packageName}_hyper_left_regex", findViewById<EditText>(R.id.etHypLeftRegex).text.toString())
-                putString("${packageName}_hyper_main_regex", findViewById<EditText>(R.id.etHypMainRegex).text.toString())
-            } else {
-                val rgTextSource: RadioGroup = findViewById(R.id.rgTextSource)
-                val selectedTextSource = when (rgTextSource.checkedRadioButtonId) {
-                    R.id.rbSourceTitle -> "title"
-                    R.id.rbSourceSubText -> "subtext"
-                    R.id.rbSourceTitleText -> "titletext"
-                    else -> "text"
-                }
-                val regexFilter = findViewById<EditText>(R.id.etRegexFilter).text.toString()
-                putString("${packageName}_text_source", selectedTextSource)
-                putString("${packageName}_regex_filter", regexFilter)
-            }
-
-            val iconSource = when {
-                findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconApp).isChecked -> "app"
-                findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconNotification).isChecked -> "notification"
-                findViewById<com.google.android.material.radiobutton.MaterialRadioButton>(R.id.rbIconExtracted).isChecked -> "extracted"
-                else -> "default"
-            }
             putString("${packageName}_icon_source", iconSource)
+            if (castMode == "hyperisland") {
+                putString("${packageName}_hyper_left_source", hypLeftSource)
+                putString("${packageName}_hyper_main_source", hypMainSource)
+                putString("${packageName}_hyper_left_regex", hypLeftRegex)
+                putString("${packageName}_hyper_main_regex", hypMainRegex)
+            } else {
+                putString("${packageName}_text_source", luTextSource)
+                putString("${packageName}_regex_filter", luRegex)
+            }
             apply()
         }
-        Toast.makeText(this, "Configuration Saved", Toast.LENGTH_SHORT).show()
-        finish()
+        Toast.makeText(context, "Configuration Saved", Toast.LENGTH_SHORT).show()
+        onSave()
+    }
+
+    val topAppBarScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
+
+    Scaffold(
+        topBar = {
+            SmallTopAppBar(
+                title = appLabel,
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(MiuixIcons.Back, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    Button(
+                        onClick = { saveSettings() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) { Text("Save") }
+                }
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            contentPadding = paddingValues,
+            modifier = Modifier
+                .fillMaxSize()
+                .scrollEndHaptic()
+        ) {
+            // App Info
+            item {
+                SmallTitle("App Information")
+                Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                    BasicComponent(
+                        title = appLabel,
+                        summary = packageName,
+                        startAction = {
+                            appIcon?.let {
+                                Image(
+                                    painter = BitmapPainter(it.toBitmap().asImageBitmap()),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Preview
+            item {
+                SmallTitle("Output Preview")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        appIcon?.let {
+                            Image(
+                                painter = BitmapPainter(it.toBitmap().asImageBitmap()),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                        Text(
+                            text = previewText,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // Icon Source
+            item {
+                SmallTitle("Icon Source")
+                Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                    RadioButtonPreference(
+                        selected = iconSource == "app",
+                        onClick = { iconSource = "app" },
+                        title = "Original App Icon"
+                    )
+                    RadioButtonPreference(
+                        selected = iconSource == "notification",
+                        onClick = { iconSource = "notification" },
+                        title = "Default Notification Icon"
+                    )
+                    RadioButtonPreference(
+                        selected = iconSource == "extracted",
+                        onClick = { iconSource = "extracted" },
+                        title = if (drawableIds.isEmpty()) "Extracted Resource (No icons discovered yet)" else "Extracted Resource",
+                        enabled = drawableIds.isNotEmpty()
+                    )
+                }
+            }
+
+            // Mode-specific Config
+            if (castMode == "hyperisland") {
+                item {
+                    SmallTitle("HyperIsland Mapping")
+
+                    SmallTitle("Left Segment Source")
+                    val sources = listOf("title", "text", "subtext", "titletext")
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        sources.forEach { source ->
+                            RadioButtonPreference(
+                                selected = hypLeftSource == source,
+                                onClick = { hypLeftSource = source },
+                                title = source.replaceFirstChar { it.uppercase() }
+                            )
+                        }
+                        TextField(
+                            value = hypLeftRegex,
+                            onValueChange = { hypLeftRegex = it },
+                            label = "Left Segment Regex",
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SmallTitle("Main Segment Source")
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        sources.forEach { source ->
+                            RadioButtonPreference(
+                                selected = hypMainSource == source,
+                                onClick = { hypMainSource = source },
+                                title = source.replaceFirstChar { it.uppercase() }
+                            )
+                        }
+                        TextField(
+                            value = hypMainRegex,
+                            onValueChange = { hypMainRegex = it },
+                            label = "Main Segment Regex",
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            } else {
+                item {
+                    SmallTitle("Live Update Mapping")
+
+                    SmallTitle("Text Source")
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        RadioButtonPreference(
+                            selected = luTextSource == "title",
+                            onClick = { luTextSource = "title" },
+                            title = "Title"
+                        )
+                        RadioButtonPreference(
+                            selected = luTextSource == "text",
+                            onClick = { luTextSource = "text" },
+                            title = "Text"
+                        )
+                        RadioButtonPreference(
+                            selected = luTextSource == "subtext",
+                            onClick = { luTextSource = "subtext" },
+                            title = "SubText"
+                        )
+                        RadioButtonPreference(
+                            selected = luTextSource == "titletext",
+                            onClick = { luTextSource = "titletext" },
+                            title = "Title+Text"
+                        )
+
+                        TextField(
+                            value = luRegex,
+                            onValueChange = { luRegex = it },
+                            label = "Text Regex Filter",
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            // Discovered Resources
+            if (drawableIds.isNotEmpty()) {
+                item {
+                    SmallTitle("Discovered Resources")
+
+                    val sourceContext = remember(packageName) {
+                        try { context.createPackageContext(packageName, 0) } catch (_: Exception) { null }
+                    }
+
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        items(drawableIds) { id ->
+                            sourceContext?.let { ctx ->
+                                val drawable = remember(id) {
+                                    try { ResourcesCompat.getDrawable(ctx.resources, id, ctx.theme) } catch (_: Exception) { null }
+                                }
+                                drawable?.let {
+                                    Image(
+                                        painter = BitmapPainter(it.toBitmap().asImageBitmap()),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(56.dp)
+                                            .clickable {
+                                                val resName = try { ctx.resources.getResourceEntryName(id) } catch (_: Exception) { id.toString() }
+                                                Toast.makeText(context, "ID: $id\nName: $resName", Toast.LENGTH_SHORT).show()
+                                            }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Notification Render Preview
+            item {
+                val renderFile = remember(packageName) { File(context.filesDir, "renders/${packageName}.png") }
+                if (renderFile.exists()) {
+                    SmallTitle("Last Notification Render")
+                    val bitmap = remember(packageName) {
+                        try { BitmapFactory.decodeFile(renderFile.absolutePath) } catch (_: Exception) { null }
+                    }
+                    if (bitmap != null) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Notification render preview",
+                                modifier = Modifier.fillMaxWidth().padding(8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Raw Data
+            item {
+                SmallTitle("Latest Raw Data")
+                Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                    BasicComponent(title = "Title: $lastTitle")
+                    BasicComponent(title = "Text: $lastText")
+                    BasicComponent(title = "SubText: $lastSubText")
+                }
+            }
+
+            item {
+                SmallTitle("Raw Dump")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = lastDump,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                Button(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Notification Dump", lastDump))
+                        Toast.makeText(context, "Dump copied", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                ) { Text("Copy Raw Dump") }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
     }
 }
