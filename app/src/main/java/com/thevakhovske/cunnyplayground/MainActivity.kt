@@ -136,17 +136,25 @@ class MainActivity : ComponentActivity() {
 fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    val labels = listOf("Playground", "HyperIsland", "Re-Caster")
+    val isMiui = remember { isMiuiRegion() }
+    val labels = if (isMiui) listOf("Playground", "HyperIsland", "Re-Caster") else listOf("Playground", "Re-Caster")
 
     val scrollBehavior = MiuixScrollBehavior()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = when (selectedTab) {
-                    0 -> "Live Updates Playground"
-                    1 -> "HyperIsland Playground"
-                    else -> "Notification Re-Caster"
+                title = if (isMiui) {
+                     when (selectedTab) {
+                         0 -> "Live Updates Playground"
+                         1 -> "HyperIsland Playground"
+                         else -> "Notification Re-Caster"
+                     }
+                } else {
+                     when (selectedTab) {
+                         0 -> "Live Updates Playground"
+                         else -> "Notification Re-Caster"
+                     }
                 },
                 scrollBehavior = scrollBehavior
             )
@@ -154,10 +162,17 @@ fun MainScreen() {
         bottomBar = {
             NavigationBar {
                 labels.forEachIndexed { index, label ->
-                    val navIcon = when (index) {
-                        0 -> MiuixIcons.Notes
-                        1 -> MiuixIcons.NotesFill
-                        else -> MiuixIcons.Send
+                    val navIcon = if (isMiui) {
+                        when (index) {
+                            0 -> MiuixIcons.Notes
+                            1 -> MiuixIcons.NotesFill
+                            else -> MiuixIcons.Send
+                        }
+                    } else {
+                        when (index) {
+                            0 -> MiuixIcons.Notes
+                            else -> MiuixIcons.Send
+                        }
                     }
                     NavigationBarItem(
                         selected = selectedTab == index,
@@ -169,10 +184,17 @@ fun MainScreen() {
             }
         }
     ) { paddingValues ->
-        when (selectedTab) {
-            0 -> PlaygroundScreen(paddingValues, scrollBehavior)
-            1 -> HyperIslandScreen(paddingValues, scrollBehavior)
-            2 -> RecasterScreen(paddingValues, scrollBehavior)
+        if (isMiui) {
+            when (selectedTab) {
+                0 -> PlaygroundScreen(paddingValues, scrollBehavior)
+                1 -> HyperIslandScreen(paddingValues, scrollBehavior)
+                2 -> RecasterScreen(paddingValues, scrollBehavior)
+            }
+        } else {
+            when (selectedTab) {
+                0 -> PlaygroundScreen(paddingValues, scrollBehavior)
+                1 -> RecasterScreen(paddingValues, scrollBehavior)
+            }
         }
     }
 }
@@ -552,14 +574,16 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                     },
                     title = "Live Updates"
                 )
-                RadioButtonPreference(
-                    selected = castMode == "hyperisland",
-                    onClick = {
-                        castMode = "hyperisland"
-                        prefs.edit().putString("cast_mode", "hyperisland").apply()
-                    },
-                    title = "HyperIsland"
-                )
+                if (isMiuiRegion()) {
+                    RadioButtonPreference(
+                        selected = castMode == "hyperisland",
+                        onClick = {
+                            castMode = "hyperisland"
+                            prefs.edit().putString("cast_mode", "hyperisland").apply()
+                        },
+                        title = "HyperIsland"
+                    )
+                }
             }
         }
 
@@ -676,8 +700,20 @@ fun postHyperNotification(
 }
 
 fun stopService(context: Context) {
-    val intent = Intent(context, PlaygroundService::class.java).apply {
-        action = PlaygroundService.ACTION_STOP
+    if (Build.VERSION.SDK_INT >= 26) {
+        context.startForegroundService(Intent(context, PlaygroundService::class.java).apply { action = PlaygroundService.ACTION_STOP })
+    } else {
+        context.startService(Intent(context, PlaygroundService::class.java).apply { action = PlaygroundService.ACTION_STOP })
     }
-    context.startService(intent)
+}
+
+fun isMiuiRegion(): Boolean {
+    return try {
+        val buildClass = Class.forName("android.os.SystemProperties")
+        val method = buildClass.getMethod("get", String::class.java)
+        val value = method.invoke(buildClass, "ro.miui.region") as String
+        value.isNotEmpty()
+    } catch (_: Exception) {
+        false
+    }
 }
