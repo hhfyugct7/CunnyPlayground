@@ -43,7 +43,9 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.Settings
+import top.yukonga.miuix.kmp.icon.extended.Notes
+import top.yukonga.miuix.kmp.icon.extended.NotesFill
+import top.yukonga.miuix.kmp.icon.extended.Send
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.CheckboxPreference
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
@@ -152,10 +154,15 @@ fun MainScreen() {
         bottomBar = {
             NavigationBar {
                 labels.forEachIndexed { index, label ->
+                    val navIcon = when (index) {
+                        0 -> MiuixIcons.Notes
+                        1 -> MiuixIcons.NotesFill
+                        else -> MiuixIcons.Send
+                    }
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        icon = MiuixIcons.Settings,
+                        icon = navIcon,
                         label = label
                     )
                 }
