@@ -21,3 +21,5 @@ app/release/
 *.jar
 commonMain/*
 androidMain/*
+dynamicisland/*
+focusclasses/*

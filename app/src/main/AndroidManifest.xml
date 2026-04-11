@@ -50,6 +50,7 @@
 
         <activity android:name=".AppPickerActivity" />
         <activity android:name=".AppConfigActivity" />
+        <activity android:name=".ExamplesActivity" />
 
         <receiver
             android:name=".HyperCommandReceiver"

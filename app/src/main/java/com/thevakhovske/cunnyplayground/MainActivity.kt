@@ -46,6 +46,7 @@ import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Notes
 import top.yukonga.miuix.kmp.icon.extended.NotesFill
 import top.yukonga.miuix.kmp.icon.extended.Send
+import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.CheckboxPreference
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
@@ -155,6 +156,14 @@ fun MainScreen() {
                          0 -> "Live Updates Playground"
                          else -> "Notification Re-Caster"
                      }
+                },
+                actions = {
+                    if (isMiui && selectedTab == 1) {
+                        val context = LocalContext.current
+                        IconButton(onClick = { context.startActivity(Intent(context, ExamplesActivity::class.java)) }) {
+                            Icon(imageVector = MiuixIcons.Settings, contentDescription = "Settings")
+                        }
+                    }
                 },
                 scrollBehavior = scrollBehavior
             )
