@@ -20,6 +20,9 @@
     * HyperIsland: 
         * Set small icon by setting: App Icon/Notification Icon/First extracted drawable from a remoteView if such exists;
         * Set each island side text as: Text, Subtext or Content, and modify it's appearance via regex.
+    * On global HyperOS Builds, if the source notification has a custom notification, it will get casted as well:
+
+    ![alt text](repo-images/custom_notification.png)
 
 A brief demonstration on how each type will look like on several UIs (small island/status chip only):
 
