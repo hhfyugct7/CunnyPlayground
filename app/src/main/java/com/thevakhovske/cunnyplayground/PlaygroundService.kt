@@ -33,6 +33,17 @@ class PlaygroundService : Service() {
     private var isForegroundActive = false
     private lateinit var notificationManager: NotificationManager
 
+    private val isMiuiGlobalBuild: Boolean by lazy {
+        try {
+            val systemProperties = Class.forName("android.os.SystemProperties")
+            val get = systemProperties.getMethod("get", String::class.java)
+            val region = get.invoke(null, "ro.miui.region") as String
+            region.isNotBlank() && region != "CN"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
