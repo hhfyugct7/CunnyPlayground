@@ -12,6 +12,8 @@ import android.os.Build
 import android.os.IBinder
 import android.widget.Toast
 import android.graphics.Bitmap
+import android.widget.RemoteViews
+import org.json.JSONObject
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -454,6 +456,84 @@ class PlaygroundService : Service() {
                     
                     builder.extras.putString("miui.focus.param", jsonPayload)
                     builder.extras.putAll(resBundle)
+
+                    if (isMiuiGlobalBuild) {
+                        // inject original remoteview (from preliminary impl)
+                        val sourceRv = intent.getParcelableExtra<RemoteViews>("miui_rv")
+                        if (sourceRv != null) {
+                            val wrappedRv = RemoteViews(packageName, R.layout.focus_rv_wrapper)
+                            wrappedRv.removeAllViews(R.id.rv_wrapper_container)
+                            wrappedRv.addView(R.id.rv_wrapper_container, sourceRv)
+                            builder.extras.putParcelable("miui.focus.rv", wrappedRv)
+                        }
+
+                        // miui.focus.pic_ticker needs to exists according to notificationfocusmanager
+                        val tPic = if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                            io.github.d4viddf.hyperisland_kit.HyperPicture("ticker", iconObj)
+                        } else {
+                            io.github.d4viddf.hyperisland_kit.HyperPicture("ticker", this, iconRes)
+                        }
+                        hyperBuilder.addPicture(tPic)
+                        
+                        builder.extras.putAll(hyperBuilder.buildResourceBundle())
+
+                        // miui.focus.param.custom
+                        val customJson = JSONObject().apply {
+                            put("ticker", title)
+                            put("tickerPic", "miui.focus.pic_ticker")
+                            put("enableFloat", false)
+                            put("updatable", true)
+                            put("isShowNotification", true)
+                            put("islandFirstFloat", false)
+                            put("timeout", 10000)
+
+                            val paramIsland = JSONObject().apply {
+                                put("islandProperty", 1)
+                                put("islandPriority", 2)
+                                put("islandOrder", false)
+                                put("dismissIsland", false)
+                                put("maxSize", false)
+                                put("needCloseAnimation", true)
+
+                                val bigIslandArea = JSONObject().apply {
+                                    val imageTextInfoLeft = JSONObject().apply {
+                                        put("type", 1)
+                                        put("picInfo", JSONObject().apply {
+                                            put("type", 1)
+                                            put("pic", "miui.focus.pic_default_icon")
+                                            put("loop", false)
+                                            put("autoplay", false)
+                                            put("number", 0)
+                                        })
+                                        put("textInfo", JSONObject().apply {
+                                            put("title", title)
+                                            put("showHighlightColor", false)
+                                        })
+                                    }
+                                    put("imageTextInfoLeft", imageTextInfoLeft)
+                                    
+                                    put("textInfo", JSONObject().apply {
+                                        put("title", text)
+                                        put("showHighlightColor", false)
+                                    })
+                                }
+                                put("bigIslandArea", bigIslandArea)
+
+                                val smallIslandArea = JSONObject().apply {
+                                    put("picInfo", JSONObject().apply {
+                                        put("type", 1)
+                                        put("pic", "miui.focus.pic_default_icon")
+                                        put("loop", false)
+                                        put("autoplay", false)
+                                        put("number", 0)
+                                    })
+                                }
+                                put("smallIslandArea", smallIslandArea)
+                            }
+                            put("param_island", paramIsland)
+                        }
+                        builder.extras.putString("miui.focus.param.custom", customJson.toString())
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
