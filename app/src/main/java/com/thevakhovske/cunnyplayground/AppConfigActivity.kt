@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Alignment
@@ -99,7 +100,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     val lastTitle = remember { prefs.getString("${packageName}_last_title", "N/A") ?: "N/A" }
     val lastText = remember { prefs.getString("${packageName}_last_text", "N/A") ?: "N/A" }
     val lastSubText = remember { prefs.getString("${packageName}_last_subtext", "N/A") ?: "N/A" }
-    val lastDump = remember { prefs.getString("${packageName}_last_raw_dump", "Waiting for next interception...") ?: "Waiting..." }
+    val lastDump = remember { prefs.getString("${packageName}_last_raw_dump", context.getString(R.string.section_raw_dump)) ?: "Waiting..." }
 
     val drawablesStr = remember { prefs.getString("${packageName}_last_drawables", "") ?: "" }
     val drawableIds = remember { drawablesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct() }
@@ -172,7 +173,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             apply()
         }
         context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
-        Toast.makeText(context, "Configuration Saved", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.msg_config_saved), Toast.LENGTH_SHORT).show()
         onSave()
     }
 
@@ -184,14 +185,14 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                 title = appLabel,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, contentDescription = "Back")
+                        Icon(MiuixIcons.Back, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     Button(
                         onClick = { saveSettings() },
                         modifier = Modifier.padding(end = 8.dp)
-                    ) { Text("Save") }
+                    ) { Text(stringResource(R.string.btn_save)) }
                 }
             )
         }
@@ -204,7 +205,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         ) {
             // App Info
             item {
-                SmallTitle("App Information")
+                SmallTitle(stringResource(R.string.section_app_info))
                 Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                     BasicComponent(
                         title = appLabel,
@@ -224,7 +225,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
 
             // Preview
             item {
-                SmallTitle("Output Preview")
+                SmallTitle(stringResource(R.string.section_output_preview))
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -320,22 +321,22 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
 
             // Icon Source
             item {
-                SmallTitle("Icon Source")
+                SmallTitle(stringResource(R.string.section_icon_source))
                 Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                     RadioButtonPreference(
                         selected = iconSource == "app",
                         onClick = { iconSource = "app" },
-                        title = "Original App Icon"
+                        title = stringResource(R.string.pref_icon_app)
                     )
                     RadioButtonPreference(
                         selected = iconSource == "notification",
                         onClick = { iconSource = "notification" },
-                        title = "Default Notification Icon"
+                        title = stringResource(R.string.pref_icon_notif)
                     )
                     RadioButtonPreference(
                         selected = iconSource == "extracted",
                         onClick = { iconSource = "extracted" },
-                        title = if (drawableIds.isEmpty()) "Extracted Resource (No icons discovered yet)" else "Extracted Resource",
+                        title = if (drawableIds.isEmpty()) stringResource(R.string.pref_icon_extracted_none) else stringResource(R.string.pref_icon_extracted),
                         enabled = drawableIds.isNotEmpty()
                     )
                 }
@@ -344,76 +345,82 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             // Mode-specific Config
             if (castMode == "hyperisland") {
                 item {
-                    SmallTitle("HyperIsland Mapping")
+                    SmallTitle(stringResource(R.string.section_hyper_mapping))
 
-                    SmallTitle("Left Segment Source")
+                    SmallTitle(stringResource(R.string.section_left_source))
                     val sources = listOf("title", "text", "subtext", "titletext")
+                    val sourceLabels = listOf(
+                        stringResource(R.string.label_title),
+                        stringResource(R.string.label_text),
+                        stringResource(R.string.label_subtext),
+                        "${stringResource(R.string.label_title)}+${stringResource(R.string.label_text)}"
+                    )
                     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
-                        sources.forEach { source ->
+                        sources.forEachIndexed { index, source ->
                             RadioButtonPreference(
                                 selected = hypLeftSource == source,
                                 onClick = { hypLeftSource = source },
-                                title = source.replaceFirstChar { it.uppercase() }
+                                title = sourceLabels[index]
                             )
                         }
                         TextField(
                             value = hypLeftRegex,
                             onValueChange = { hypLeftRegex = it },
-                            label = "Left Segment Regex",
+                            label = stringResource(R.string.label_left_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    SmallTitle("Main Segment Source")
+                    SmallTitle(stringResource(R.string.section_main_source))
                     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
-                        sources.forEach { source ->
+                        sources.forEachIndexed { index, source ->
                             RadioButtonPreference(
                                 selected = hypMainSource == source,
                                 onClick = { hypMainSource = source },
-                                title = source.replaceFirstChar { it.uppercase() }
+                                title = sourceLabels[index]
                             )
                         }
                         TextField(
                             value = hypMainRegex,
                             onValueChange = { hypMainRegex = it },
-                            label = "Main Segment Regex",
+                            label = stringResource(R.string.label_main_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
                 }
             } else {
                 item {
-                    SmallTitle("Live Update Mapping")
+                    SmallTitle(stringResource(R.string.section_lu_mapping))
 
-                    SmallTitle("Text Source")
+                    SmallTitle(stringResource(R.string.section_text_source))
                     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                         RadioButtonPreference(
                             selected = luTextSource == "title",
                             onClick = { luTextSource = "title" },
-                            title = "Title"
+                            title = stringResource(R.string.label_title)
                         )
                         RadioButtonPreference(
                             selected = luTextSource == "text",
                             onClick = { luTextSource = "text" },
-                            title = "Text"
+                            title = stringResource(R.string.label_text)
                         )
                         RadioButtonPreference(
                             selected = luTextSource == "subtext",
                             onClick = { luTextSource = "subtext" },
-                            title = "SubText"
+                            title = stringResource(R.string.label_subtext)
                         )
                         RadioButtonPreference(
                             selected = luTextSource == "titletext",
                             onClick = { luTextSource = "titletext" },
-                            title = "Title+Text"
+                            title = "${stringResource(R.string.label_title)}+${stringResource(R.string.label_text)}"
                         )
 
                         TextField(
                             value = luRegex,
                             onValueChange = { luRegex = it },
-                            label = "Text Regex Filter",
+                            label = stringResource(R.string.label_text_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
@@ -423,7 +430,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             // Discovered Resources
             if (drawableIds.isNotEmpty()) {
                 item {
-                    SmallTitle("Discovered Resources")
+                    SmallTitle(stringResource(R.string.section_discovered_res))
 
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -457,7 +464,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             item {
                 val renderFile = remember(packageName) { File(context.filesDir, "renders/${packageName}.png") }
                 if (renderFile.exists()) {
-                    SmallTitle("Last Notification Render")
+                    SmallTitle(stringResource(R.string.section_last_render))
                     val bitmap = remember(packageName) {
                         try { BitmapFactory.decodeFile(renderFile.absolutePath) } catch (_: Exception) { null }
                     }
@@ -479,7 +486,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
 
             // Raw Data
             item {
-                SmallTitle("Latest Raw Data")
+                SmallTitle(stringResource(R.string.section_raw_data))
                 Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                     BasicComponent(title = "Title: $lastTitle")
                     BasicComponent(title = "Text: $lastText")
@@ -488,7 +495,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             }
 
             item {
-                SmallTitle("Raw Dump")
+                SmallTitle(stringResource(R.string.section_raw_dump))
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -503,10 +510,10 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Notification Dump", lastDump))
-                        Toast.makeText(context, "Dump copied", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.msg_dump_copied), Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                ) { Text("Copy Raw Dump") }
+                ) { Text(stringResource(R.string.btn_copy_dump)) }
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }

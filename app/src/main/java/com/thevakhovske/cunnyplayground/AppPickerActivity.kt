@@ -20,6 +20,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.core.graphics.drawable.toBitmap
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -120,10 +121,10 @@ fun AppPickerScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = "Select Apps",
+                title = stringResource(R.string.title_select_apps),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, contentDescription = "Back")
+                        Icon(MiuixIcons.Back, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -139,7 +140,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = "Search apps...",
+                    label = stringResource(R.string.label_search_apps),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -149,7 +150,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
             if (isLoading) {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        top.yukonga.miuix.kmp.basic.Text("Loading installed applications...")
+                        top.yukonga.miuix.kmp.basic.Text(stringResource(R.string.msg_loading_apps))
                     }
                 }
             } else {

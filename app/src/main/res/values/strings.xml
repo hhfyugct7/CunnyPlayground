@@ -1,5 +1,104 @@
 <resources>
     <string name="app_name">CunnyPlayground</string>
+    
+    <string name="tab_playground">Playground</string>
+    <string name="tab_hyperisland">HyperIsland</string>
+    <string name="tab_recaster">Re-Caster</string>
+    
+    <string name="title_playground">Live Updates Playground</string>
+    <string name="title_hyperisland">HyperIsland Playground</string>
+    <string name="title_recaster">Notification Re-Caster</string>
+    
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+    
+    <string name="section_notif_info">Notification Info</string>
+    <string name="label_title">Title</string>
+    <string name="label_text">Text</string>
+    <string name="label_subtext">SubText</string>
+    <string name="label_chip_text">Status Chip Text</string>
+    
+    <string name="section_settings">Settings</string>
+    <string name="pref_ongoing">Ongoing</string>
+    <string name="pref_promoted">Promoted (Status Chip)</string>
+    <string name="pref_chrono">Chronometer</string>
+    <string name="pref_show_progress">Show Progress Bar</string>
+    
+    <string name="section_icon">Icon</string>
+    <string name="icon_timer">Timer</string>
+    <string name="icon_call">Call</string>
+    <string name="icon_alert">Alert</string>
+    <string name="icon_default">Default</string>
+    
+    <string name="btn_post">Post</string>
+    <string name="btn_update">Update</string>
+    <string name="btn_clear_all">Clear All</string>
+    
+    <string name="section_posted_notifs">Posted Notifications</string>
+    
+    <string name="section_hyper_payload">HyperIsland Payload</string>
+    <string name="label_left_text">Left Text</string>
+    <string name="label_main_text">Main Text</string>
+    <string name="section_raw_json">Raw JSON (Optional)</string>
+    <string name="label_custom_json">Custom JSON Payload</string>
+    <string name="btn_post_hyper">Post HyperIsland</string>
+    
+    <string name="section_casting_settings">Casting Settings</string>
+    <string name="pref_cast_notifs">Cast Notifications</string>
+    <string name="pref_cast_notifs_summary">Re-cast intercepted notifications as Live Updates</string>
+    <string name="pref_use_app_icon">Use Original App Icons</string>
+    <string name="pref_use_app_icon_summary">Use source app icon instead of notification icon</string>
+    <string name="pref_show_progress_percent">Show Progress Percentage</string>
+    <string name="pref_show_progress_percent_summary">Display progress percentage in status chip</string>
+    <string name="pref_limit_chip">(AOSP only) Limit Chip Text</string>
+    <string name="pref_limit_chip_summary">Limit status chip text to 7 characters</string>
+    
+    <string name="section_cast_as">Cast As</string>
+    <string name="mode_live_updates">Live Updates</string>
+    <string name="mode_hyperisland">HyperIsland</string>
+    
+    <string name="section_actions">Actions</string>
+    <string name="action_grant_access">Grant Notification Access</string>
+    <string name="action_grant_access_summary">Required for intercepting notifications</string>
+    <string name="action_select_apps">Select Apps to Cast</string>
+    <string name="summary_apps_selected">%d apps selected</string>
+    <string name="summary_app_selected">1 app selected</string>
+    <string name="section_enabled_apps">Enabled Apps (%d)</string>
+    
+    <string name="title_select_apps">Select Apps</string>
+    <string name="label_search_apps">Search apps...</string>
+    <string name="msg_loading_apps">Loading installed applications...</string>
+    
+    <string name="section_app_info">App Information</string>
+    <string name="section_output_preview">Output Preview</string>
+    <string name="section_icon_source">Icon Source</string>
+    <string name="pref_icon_app">Original App Icon</string>
+    <string name="pref_icon_notif">Default Notification Icon</string>
+    <string name="pref_icon_extracted_none">Extracted Resource (No icons discovered yet)</string>
+    <string name="pref_icon_extracted">Extracted Resource</string>
+    
+    <string name="section_hyper_mapping">HyperIsland Mapping</string>
+    <string name="section_left_source">Left Segment Source</string>
+    <string name="label_left_regex">Left Segment Regex</string>
+    <string name="section_main_source">Main Segment Source</string>
+    <string name="label_main_regex">Main Segment Regex</string>
+    
+    <string name="section_lu_mapping">Live Update Mapping</string>
+    <string name="section_text_source">Text Source</string>
+    <string name="label_text_regex">Text Regex Filter</string>
+    
+    <string name="section_discovered_res">Discovered Resources</string>
+    <string name="section_last_render">Last Notification Render</string>
+    <string name="section_raw_data">Latest Raw Data</string>
+    <string name="section_raw_dump">Raw Dump</string>
+    <string name="btn_copy_dump">Copy Raw Dump</string>
+    <string name="btn_save">Save</string>
+    <string name="msg_config_saved">Configuration Saved</string>
+    <string name="msg_dump_copied">Dump copied</string>
+    
+    <string name="channel_name">Live Updates</string>
+    <string name="channel_desc">Channel for Live Updates Playground</string>
+
     <string-array name="hype_source_options">
         <item>Title</item>
         <item>Text</item>
