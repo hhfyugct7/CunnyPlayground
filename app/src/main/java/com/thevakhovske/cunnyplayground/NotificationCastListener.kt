@@ -12,6 +12,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
 import android.graphics.Bitmap
+import androidx.core.graphics.drawable.toBitmap
 import android.graphics.Canvas
 import android.view.View
 import java.io.File
@@ -145,6 +146,23 @@ class NotificationCastListener : NotificationListenerService() {
                     val renderFile = File(rendersDir, "${sbn.packageName}.png")
                     FileOutputStream(renderFile).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                }
+            }
+            
+            // Save Small Icon for preview
+            if (Build.VERSION.SDK_INT >= 23) {
+                val smallIcon = sbn.notification.smallIcon
+                if (smallIcon != null) {
+                    val smallIconDrawable = smallIcon.loadDrawable(this)
+                    val smallIconBitmap = smallIconDrawable?.toBitmap()
+                    if (smallIconBitmap != null) {
+                        val rendersDir = File(filesDir, "renders")
+                        if (!rendersDir.exists()) rendersDir.mkdirs()
+                        val smallIconFile = File(rendersDir, "${sbn.packageName}_small_icon.png")
+                        FileOutputStream(smallIconFile).use { out ->
+                            smallIconBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
                     }
                 }
             }

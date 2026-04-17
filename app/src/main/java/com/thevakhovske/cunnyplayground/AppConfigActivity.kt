@@ -22,6 +22,11 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -99,6 +104,29 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     val drawablesStr = remember { prefs.getString("${packageName}_last_drawables", "") ?: "" }
     val drawableIds = remember { drawablesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct() }
 
+    val sourceContext = remember(packageName) {
+        try { context.createPackageContext(packageName, 0) } catch (_: Exception) { null }
+    }
+
+    val previewIconBitmap = remember(iconSource, appIcon, drawableIds, sourceContext) {
+        val drawable = when (iconSource) {
+            "extracted" -> {
+                val id = drawableIds.firstOrNull()
+                if (id != null && sourceContext != null) {
+                    try { ResourcesCompat.getDrawable(sourceContext.resources, id, sourceContext.theme) } catch (_: Exception) { appIcon }
+                } else appIcon
+            }
+            "notification" -> {
+                val iconFile = File(context.filesDir, "renders/${packageName}_small_icon.png")
+                if (iconFile.exists()) {
+                    try { android.graphics.drawable.BitmapDrawable(context.resources, BitmapFactory.decodeFile(iconFile.absolutePath)) } catch (_: Exception) { appIcon }
+                } else appIcon
+            }
+            else -> appIcon
+        }
+        drawable?.toBitmap()?.asImageBitmap()
+    }
+
     fun applyRegex(rawText: String, regexStr: String): String {
         if (regexStr.isEmpty()) return rawText
         return try {
@@ -121,13 +149,13 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
     }
 
-    val previewText = if (castMode == "hyperisland") {
-        val leftF = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
-        val mainF = applyRegex(getRawText(hypMainSource), hypMainRegex)
-        "L: $leftF  |  M: $mainF"
-    } else {
-        applyRegex(getRawText(luTextSource), luRegex)
-    }
+    val limit7Char = remember { prefs.getBoolean("limit_chip_7char", false) }
+
+    val previewLeftText = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
+    val previewMainText = applyRegex(getRawText(hypMainSource), hypMainRegex)
+
+    val previewStatusTextRaw = applyRegex(getRawText(luTextSource), luRegex)
+    val previewStatusText = if (limit7Char && previewStatusTextRaw.length > 7) previewStatusTextRaw.take(7) else previewStatusTextRaw
 
     fun saveSettings() {
         prefs.edit().apply {
@@ -202,21 +230,90 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    // Center the preview
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp, horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        appIcon?.let {
-                            Image(
-                                painter = BitmapPainter(it.toBitmap().asImageBitmap()),
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp)
-                            )
+                        if (castMode == "hyperisland") {
+                            // Hyperisland Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                    .background(androidx.compose.ui.graphics.Color.Black)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                previewIconBitmap?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20))
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = previewLeftText,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 100.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                // Camera Cutout Placeholder
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(androidx.compose.ui.graphics.Color.White)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = previewMainText,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 140.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                        } else {
+                            // Live Updates Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                    .background(androidx.compose.ui.graphics.Color.Black)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                previewIconBitmap?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20))
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = previewStatusText,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 100.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
                         }
-                        Text(
-                            text = previewText,
-                            modifier = Modifier.weight(1f)
-                        )
                     }
                 }
             }
@@ -327,10 +424,6 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             if (drawableIds.isNotEmpty()) {
                 item {
                     SmallTitle("Discovered Resources")
-
-                    val sourceContext = remember(packageName) {
-                        try { context.createPackageContext(packageName, 0) } catch (_: Exception) { null }
-                    }
 
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
