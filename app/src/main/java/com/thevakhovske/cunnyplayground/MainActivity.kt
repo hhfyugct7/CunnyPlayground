@@ -22,7 +22,10 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.Alignment
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
@@ -41,6 +44,7 @@ import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.utils.overScrollVertical
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Back
@@ -608,6 +612,41 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
             }
         }
 
+        if (isMiuiCN() && castMode == "hyperisland") {
+            item {
+                Card(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth(),
+                    colors = CardDefaults.defaultColors(
+                        color = Color(0xFFFEE2E2) // Light red background
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = MiuixIcons.Settings, // Using Settings icon as fallback for warning
+                                contentDescription = null,
+                                tint = Color.Red,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.warning_cn_rom_title),
+                                color = Color.Red,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.warning_cn_rom_msg),
+                            color = Color(0xFF991B1B), // Darker red text
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+
         item {
             SmallTitle(stringResource(R.string.section_actions))
             Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
@@ -734,6 +773,17 @@ fun isMiuiRegion(): Boolean {
         val method = buildClass.getMethod("get", String::class.java)
         val value = method.invoke(buildClass, "ro.miui.region") as String
         value.isNotEmpty()
+    } catch (_: Exception) {
+        false
+    }
+}
+
+fun isMiuiCN(): Boolean {
+    return try {
+        val buildClass = Class.forName("android.os.SystemProperties")
+        val method = buildClass.getMethod("get", String::class.java)
+        val value = method.invoke(buildClass, "ro.miui.region") as String
+        value == "CN"
     } catch (_: Exception) {
         false
     }

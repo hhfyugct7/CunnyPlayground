@@ -96,6 +96,9 @@
     <string name="msg_config_saved">Конфигурация сохранена</string>
     <string name="msg_dump_copied">Дамп скопирован</string>
     
+    <string name="warning_cn_rom_title">Внимание: Китайская прошивка!</string>
+    <string name="warning_cn_rom_msg">Xiaomi блокирует сторонние уведомления HyperIsland на китайских прошивках.\nHyperIsland может не отображаться.\nПожалуйста:\n\u2022 Заблокируйте доступ в сеть для Xiaomi Service Framework\n\u2022 Если есть root, включите \'Disable focus notification whitelist\' в Hypercelier.</string>
+
     <string name="channel_name">Live Updates</string>
     <string name="channel_desc">Канал для песочницы Live Updates</string>
 

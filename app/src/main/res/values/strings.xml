@@ -96,6 +96,9 @@
     <string name="msg_config_saved">Configuration Saved</string>
     <string name="msg_dump_copied">Dump copied</string>
     
+    <string name="warning_cn_rom_title">China ROM Warning!</string>
+    <string name="warning_cn_rom_msg">Xiaomi blocks 3rd-party HyperIsland notifications on Chinese ROMs.\nHyperIsland might not show up.\nPlease:\n\u2022 Block network access to Xiaomi Service Framework\n\u2022 If you\'re rooted, enable \'Disable focus notification whitelist\' in Hypercelier.</string>
+
     <string name="channel_name">Live Updates</string>
     <string name="channel_desc">Channel for Live Updates Playground</string>
 

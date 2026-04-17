@@ -96,6 +96,9 @@
     <string name="msg_config_saved">配置已保存</string>
     <string name="msg_dump_copied">转储已复制</string>
     
+    <string name="warning_cn_rom_title">国内版 ROM 警告！</string>
+    <string name="warning_cn_rom_msg">小米在国行版系统中屏蔽了第三方 HyperIsland 通知。\nHyperIsland 可能无法显示。\n请：\n\u2022 禁用小米服务框架的联网权限\n\u2022 如果已获取 Root 权限，请在 Hypercelier 中开启 \'Disable focus notification whitelist\'。</string>
+
     <string name="channel_name">Live Updates</string>
     <string name="channel_desc">Live Updates 操场频道</string>
 
