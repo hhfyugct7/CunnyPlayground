@@ -8,6 +8,9 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import android.widget.FrameLayout
 import android.widget.RemoteViews
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.view.View
@@ -17,6 +20,58 @@ import java.io.FileOutputStream
 class NotificationCastListener : NotificationListenerService() {
     
     private val lastNotificationContent = HashMap<Int, String>()
+
+    private val reloadReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS") {
+                Log.d("NotificationCast", "Reloading notifications due to config change...")
+                lastNotificationContent.clear()
+                reloadNotifications()
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        val filter = IntentFilter("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(reloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(reloadReceiver, filter)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(reloadReceiver)
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        reloadNotifications()
+    }
+
+    private fun reloadNotifications() {
+        val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
+        val isCastingEnabled = prefs.getBoolean("cast_notifications", false)
+        val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
+
+        try {
+            val notifications = activeNotifications ?: return
+            for (sbn in notifications) {
+                val isPackageAllowed = enabledApps == null || enabledApps.contains(sbn.packageName)
+                val isAllowed = isCastingEnabled && sbn.packageName != packageName && isPackageAllowed
+                
+                if (isAllowed) {
+                    onNotificationPosted(sbn)
+                } else {
+                    onNotificationRemoved(sbn)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NotificationCast", "Failed to reload notifications", e)
+        }
+    }
 
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -227,7 +282,7 @@ class NotificationCastListener : NotificationListenerService() {
         }
 
         // Unique ID for this cast
-        val castId = (pkg.hashCode() + sbn.id) % 10000 + 20000
+        val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
 
         // Deduping: Generate a key based on content that effects the UI
         val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|P:$progress/$progressMax/$isIndeterminate"
@@ -507,7 +562,7 @@ class NotificationCastListener : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         // Calculate the same unique ID used in onNotificationPosted
-        val castId = (sbn.packageName.hashCode() + sbn.id) % 10000 + 20000
+        val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
         
         // Clear deduping cache
         lastNotificationContent.remove(castId)

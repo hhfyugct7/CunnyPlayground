@@ -143,6 +143,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             }
             apply()
         }
+        context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
         Toast.makeText(context, "Configuration Saved", Toast.LENGTH_SHORT).show()
         onSave()
     }

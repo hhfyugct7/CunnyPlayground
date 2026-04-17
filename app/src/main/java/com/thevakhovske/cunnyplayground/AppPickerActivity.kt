@@ -179,6 +179,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                                             selectedApps.add(app.packageName)
                                         }
                                         prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                        context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
                                     }
                                 )
                             },
@@ -189,6 +190,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                                     selectedApps.add(app.packageName)
                                 }
                                 prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
                             }
                         )
                     }
