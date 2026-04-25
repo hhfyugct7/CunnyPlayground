@@ -96,6 +96,17 @@ class PlaygroundService : Service() {
     private fun cancelNotification(intent: Intent) {
         val id = intent.getIntExtra("id", -1)
         if (id != -1) {
+            // Signal Vivo framework to gracefully unmount the island pill 
+            // before destroying the underlying notification object
+            try {
+                val endBundle = android.os.Bundle()
+                endBundle.putInt("notification.superx.operation", 2)
+                val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher_round)
+                    .addExtras(endBundle)
+                notificationManager.notify(id, builder.build())
+            } catch (e: Exception) {}
+
             notificationManager.cancel(id)
             activeIds.remove(id)
         }
@@ -145,7 +156,7 @@ class PlaygroundService : Service() {
 
         builder.setContentTitle(title)
             .setContentText(text)
-            .setOngoing(true)
+            .setOngoing(intent.getBooleanExtra("is_ongoing", false))
             .setOnlyAlertOnce(true)
             .setShowWhen(true)
             .setWhen(timestamp)
