@@ -655,8 +655,9 @@ class PlaygroundService : Service() {
                 val originLeftText = intent.getStringExtra("origin_left_text")?.takeIf { it.isNotBlank() } ?: title
                 val originMainText = intent.getStringExtra("origin_main_text")?.takeIf { it.isNotBlank() } ?: text
                 
+                val originRightTemplate = intent.getIntExtra("origin_right_template", if (isProgressMode) 2 else 4)
                 islandBundle.putInt("island.superx.leftTemplate", 1)
-                islandBundle.putInt("island.superx.rightTemplate", if (isProgressMode) 2 else 4)
+                islandBundle.putInt("island.superx.rightTemplate", originRightTemplate)
                 
                 val leftBundle = android.os.Bundle()
                 leftBundle.putString("island.superx.leftInfo.content", originLeftText)
@@ -668,14 +669,33 @@ class PlaygroundService : Service() {
                 islandBundle.putBundle("island.superx.leftInfo", leftBundle)
                 
                 val rightBundle = android.os.Bundle()
-                if (isProgressMode) {
-                    val progressPercent = (progress * 100) / progressMax
-                    rightBundle.putInt("island.superx.rightInfo.progressValue", progressPercent)
-                    rightBundle.putInt("island.superx.rightInfo.progressState", 0)
-                } else {
-                    rightBundle.putString("island.superx.rightInfo.content", originMainText)
-                    if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
-                        rightBundle.putParcelable("island.superx.rightInfo.icon", iconObj)
+                when (originRightTemplate) {
+                    1 -> { // Rhythm Pulse
+                        rightBundle.putInt("island.superx.rightInfo.waveState", 1)
+                        if (Build.VERSION.SDK_INT >= 23) {
+                            val colors = java.util.ArrayList<Int>()
+                            colors.add(androidx.core.content.ContextCompat.getColor(this, R.color.teal_200))
+                            rightBundle.putIntegerArrayList("island.superx.rightInfo.waveColor", colors)
+                        }
+                    }
+                    2 -> { // Progress
+                        val progressPercent = if (progressMax > 0) (progress * 100) / progressMax else 50
+                        rightBundle.putInt("island.superx.rightInfo.progressValue", progressPercent)
+                        rightBundle.putInt("island.superx.rightInfo.progressState", 0)
+                        rightBundle.putInt("island.superx.rightInfo.progressColor", androidx.core.content.ContextCompat.getColor(this, R.color.teal_200))
+                    }
+                    3 -> { // Loading
+                        rightBundle.putInt("island.superx.rightInfo.loadingColor", androidx.core.content.ContextCompat.getColor(this, R.color.teal_200))
+                    }
+                    4, 5 -> { // Text+Icon or Icon+Text
+                        rightBundle.putString("island.superx.rightInfo.content", originMainText)
+                        if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                            rightBundle.putParcelable("island.superx.rightInfo.icon", iconObj)
+                        }
+                    }
+                    6 -> { // Capsule Symmetry
+                        rightBundle.putString("island.superx.rightInfo.capsuleContent", originMainText)
+                        rightBundle.putInt("island.superx.rightInfo.capsuleBgColor", androidx.core.content.ContextCompat.getColor(this, R.color.teal_200))
                     }
                 }
                 islandBundle.putBundle("island.superx.rightInfo", rightBundle)

@@ -204,6 +204,7 @@ class NotificationCastListener : NotificationListenerService() {
         var finalChipText = ""
         var hyperLeftText = ""
         var hyperMainText = ""
+        var originRightTemplate = 4
 
         if (castMode == "hyperisland") {
             val leftSource = prefs.getString("${sbn.packageName}_hyper_left_source", "title")
@@ -221,6 +222,7 @@ class NotificationCastListener : NotificationListenerService() {
             val mainSource = prefs.getString("${sbn.packageName}_origin_main_source", "text")
             val mainRegex = prefs.getString("${sbn.packageName}_origin_main_regex", "")
             hyperMainText = applyRegex(resolveText(mainSource), mainRegex)
+            originRightTemplate = prefs.getInt("${sbn.packageName}_origin_right_template", 4)
         } else {
             val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
             val regexStr = prefs.getString("${sbn.packageName}_regex_filter", "")
@@ -351,6 +353,7 @@ class NotificationCastListener : NotificationListenerService() {
                 val mainKey = if (castMode == "originisland") "origin_main_text" else "hyper_main_text"
                 putExtra(leftKey, hyperLeftText)
                 putExtra(mainKey, hyperMainText)
+                if (castMode == "originisland") putExtra("origin_right_template", originRightTemplate)
             }
             
             putExtra("id", castId)

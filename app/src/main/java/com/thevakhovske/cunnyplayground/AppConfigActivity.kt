@@ -101,6 +101,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     var originMainSource by remember { mutableStateOf(prefs.getString("${packageName}_origin_main_source", "text") ?: "text") }
     var originLeftRegex by remember { mutableStateOf(prefs.getString("${packageName}_origin_left_regex", "") ?: "") }
     var originMainRegex by remember { mutableStateOf(prefs.getString("${packageName}_origin_main_regex", "") ?: "") }
+    var originRightTemplate by remember { mutableStateOf(prefs.getInt("${packageName}_origin_right_template", 4)) }
 
     val lastTitle = remember { prefs.getString("${packageName}_last_title", "N/A") ?: "N/A" }
     val lastText = remember { prefs.getString("${packageName}_last_text", "N/A") ?: "N/A" }
@@ -185,6 +186,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                 putString("${packageName}_origin_main_source", originMainSource)
                 putString("${packageName}_origin_left_regex", originLeftRegex)
                 putString("${packageName}_origin_main_regex", originMainRegex)
+                putInt("${packageName}_origin_right_template", originRightTemplate)
             } else {
                 putString("${packageName}_text_source", luTextSource)
                 putString("${packageName}_regex_filter", luRegex)
@@ -448,6 +450,20 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                             label = "Main Segment Regex",
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SmallTitle("Right Segment Template (SuperX Spec)")
+                    val rightTemplates = listOf("Rhythm/Pulse" to 1, "Dynamic Progress" to 2, "Loading State" to 3, "Text + Icon" to 4, "Icon + Text" to 5, "Symmetry Capsule" to 6)
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        rightTemplates.forEach { (label, value) ->
+                            RadioButtonPreference(
+                                selected = originRightTemplate == value,
+                                onClick = { originRightTemplate = value },
+                                title = label
+                            )
+                        }
                     }
                 }
             } else {
