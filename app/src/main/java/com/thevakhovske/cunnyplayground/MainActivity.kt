@@ -138,27 +138,29 @@ fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val isMiui = remember { isMiuiRegion() }
-    val labels = if (isMiui) listOf("Playground", "HyperIsland", "Re-Caster") else listOf("Playground", "Re-Caster")
+    val isVivo = remember { isVivoDevice() }
+    val labels = remember(isMiui, isVivo) {
+        mutableListOf("Playground").apply {
+            if (isMiui) add("HyperIsland")
+            if (isVivo) add("OriginIsland")
+            add("Re-Caster")
+        }
+    }
 
     val scrollBehavior = MiuixScrollBehavior()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = if (isMiui) {
-                     when (selectedTab) {
-                         0 -> "Live Updates Playground"
-                         1 -> "HyperIsland Playground"
-                         else -> "Notification Re-Caster"
-                     }
-                } else {
-                     when (selectedTab) {
-                         0 -> "Live Updates Playground"
-                         else -> "Notification Re-Caster"
-                     }
+                title = when {
+                    isMiui && selectedTab == labels.indexOf("HyperIsland") -> "HyperIsland Playground"
+                    isVivo && selectedTab == labels.indexOf("OriginIsland") -> "OriginIsland Playground"
+                    selectedTab == labels.indexOf("Re-Caster") -> "Notification Re-Caster"
+                    else -> "Live Updates Playground"
                 },
                 actions = {
-                    if (isMiui && selectedTab == 1) {
+                    val tabLabel = labels.getOrNull(selectedTab)
+                    if ((tabLabel == "HyperIsland" || tabLabel == "OriginIsland")) {
                         val context = LocalContext.current
                         IconButton(onClick = { context.startActivity(Intent(context, ExamplesActivity::class.java)) }) {
                             Icon(imageVector = MiuixIcons.Settings, contentDescription = "Settings")
@@ -171,17 +173,11 @@ fun MainScreen() {
         bottomBar = {
             NavigationBar {
                 labels.forEachIndexed { index, label ->
-                    val navIcon = if (isMiui) {
-                        when (index) {
-                            0 -> MiuixIcons.Notes
-                            1 -> MiuixIcons.NotesFill
-                            else -> MiuixIcons.Send
-                        }
-                    } else {
-                        when (index) {
-                            0 -> MiuixIcons.Notes
-                            else -> MiuixIcons.Send
-                        }
+                    val navIcon = when (labels[index]) {
+                        "Playground" -> MiuixIcons.Notes
+                        "HyperIsland" -> MiuixIcons.NotesFill
+                        "OriginIsland" -> MiuixIcons.NotesFill // Placeholder
+                        else -> MiuixIcons.Send
                     }
                     NavigationBarItem(
                         selected = selectedTab == index,
@@ -193,17 +189,12 @@ fun MainScreen() {
             }
         }
     ) { paddingValues ->
-        if (isMiui) {
-            when (selectedTab) {
-                0 -> PlaygroundScreen(paddingValues, scrollBehavior)
-                1 -> HyperIslandScreen(paddingValues, scrollBehavior)
-                2 -> RecasterScreen(paddingValues, scrollBehavior)
-            }
-        } else {
-            when (selectedTab) {
-                0 -> PlaygroundScreen(paddingValues, scrollBehavior)
-                1 -> RecasterScreen(paddingValues, scrollBehavior)
-            }
+        when (labels.getOrNull(selectedTab)) {
+            "Playground" -> PlaygroundScreen(paddingValues, scrollBehavior)
+            "HyperIsland" -> HyperIslandScreen(paddingValues, scrollBehavior)
+            "OriginIsland" -> OriginIslandScreen(paddingValues, scrollBehavior)
+            "Re-Caster" -> RecasterScreen(paddingValues, scrollBehavior, isMiui, isVivo)
+            else -> PlaygroundScreen(paddingValues, scrollBehavior)
         }
     }
 }
@@ -481,7 +472,153 @@ fun HyperIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavi
 }
 
 @Composable
-fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior) {
+fun OriginIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior) {
+    val context = LocalContext.current
+    var title by remember { mutableStateOf("Origin Island") }
+    var text by remember { mutableStateOf("Placeholder...") }
+    var subtext by remember { mutableStateOf("") }
+    var statusChipText by remember { mutableStateOf("50%") }
+    var isPromoted by remember { mutableStateOf(true) }
+    var isOngoing by remember { mutableStateOf(true) }
+    var showProgress by remember { mutableStateOf(true) }
+    var useChrono by remember { mutableStateOf(false) }
+    var selectedIcon by remember { mutableIntStateOf(0) }
+
+    val notifications = remember { mutableStateListOf<NotificationInfo>() }
+    var lastId by remember { mutableIntStateOf(3000) }
+    var editingId by remember { mutableStateOf<Int?>(null) }
+
+    LazyColumn(
+        contentPadding = paddingValues,
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .scrollEndHaptic()
+    ) {
+        item {
+            SmallTitle("OriginIsland Info (Placeholder)")
+            TextField(
+                value = title,
+                onValueChange = { title = it },
+                label = "Title",
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                label = "Text",
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = subtext,
+                onValueChange = { subtext = it },
+                label = "SubText",
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = statusChipText,
+                onValueChange = { statusChipText = it },
+                label = "Status Chip Text",
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
+        item {
+            SmallTitle("Settings")
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                CheckboxPreference(
+                    checked = isOngoing,
+                    onCheckedChange = { isOngoing = it },
+                    title = "Ongoing"
+                )
+                CheckboxPreference(
+                    checked = isPromoted,
+                    onCheckedChange = { isPromoted = it },
+                    title = "Promoted (Status Chip)"
+                )
+                CheckboxPreference(
+                    checked = useChrono,
+                    onCheckedChange = { useChrono = it },
+                    title = "Chronometer"
+                )
+                CheckboxPreference(
+                    checked = showProgress,
+                    onCheckedChange = { showProgress = it },
+                    title = "Show Progress Bar"
+                )
+            }
+        }
+
+        item {
+            SmallTitle("Icon")
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                RadioButtonPreference(
+                    selected = selectedIcon == 0,
+                    onClick = { selectedIcon = 0 },
+                    title = "Timer"
+                )
+                RadioButtonPreference(
+                    selected = selectedIcon == 1,
+                    onClick = { selectedIcon = 1 },
+                    title = "Call"
+                )
+                RadioButtonPreference(
+                    selected = selectedIcon == 2,
+                    onClick = { selectedIcon = 2 },
+                    title = "Alert"
+                )
+                RadioButtonPreference(
+                    selected = selectedIcon == 3,
+                    onClick = { selectedIcon = 3 },
+                    title = "Default"
+                )
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        editingId = null
+                        val iconRes = getIconRes(selectedIcon)
+                        val nId = ++lastId
+                        notifications.add(NotificationInfo(nId, title, text, iconRes, isPromoted, statusChipText, showProgress))
+                        postOriginNotification(context, title, text, subtext, "", "", "", iconRes)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Post") }
+                Button(
+                    onClick = {
+                        val updateId = editingId ?: notifications.lastOrNull()?.id
+                        if (updateId != null) {
+                            val iconRes = getIconRes(selectedIcon)
+                            val updatedText = "$text (Updated)"
+                            val idx = notifications.indexOfFirst { it.id == updateId }
+                            if (idx != -1) {
+                                notifications[idx] = notifications[idx].copy(title = title, text = updatedText, iconRes = iconRes, isPromoted = isPromoted, statusChipText = statusChipText, showProgress = showProgress)
+                            }
+                            postOriginNotification(context, title, updatedText, subtext, "", "", "", iconRes)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Update") }
+                Button(
+                    onClick = {
+                        stopService(context)
+                        notifications.clear()
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Clear All") }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior, isMiui: Boolean, isVivo: Boolean) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
 
@@ -583,7 +720,7 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                     },
                     title = "Live Updates"
                 )
-                if (isMiuiRegion()) {
+                if (isMiui) {
                     RadioButtonPreference(
                         selected = castMode == "hyperisland",
                         onClick = {
@@ -591,6 +728,16 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                             prefs.edit().putString("cast_mode", "hyperisland").apply()
                         },
                         title = "HyperIsland"
+                    )
+                }
+                if (isVivo) {
+                    RadioButtonPreference(
+                        selected = castMode == "originisland",
+                        onClick = {
+                            castMode = "originisland"
+                            prefs.edit().putString("cast_mode", "originisland").apply()
+                        },
+                        title = "OriginIsland"
                     )
                 }
             }
@@ -708,6 +855,31 @@ fun postHyperNotification(
     }
 }
 
+fun postOriginNotification(
+    context: Context, title: String, text: String, subtext: String,
+    leftText: String, mainText: String, rawJson: String, iconRes: Int
+) {
+    val intent = Intent(context, PlaygroundService::class.java).apply {
+        action = PlaygroundService.ACTION_START
+        putExtra("title", title)
+        putExtra("text", text)
+        putExtra("subtext", subtext)
+        putExtra("origin_left_text", leftText)
+        putExtra("origin_main_text", mainText)
+        putExtra("raw_origin_json", rawJson)
+        putExtra("id", (System.currentTimeMillis() % 100000).toInt())
+        putExtra("icon_res", iconRes)
+        putExtra("is_promoted", true)
+        putExtra("source_app", "Manual-Origin-Compose")
+        putExtra("cast_mode", "originisland")
+    }
+    if (Build.VERSION.SDK_INT >= 26) {
+        context.startForegroundService(intent)
+    } else {
+        context.startService(intent)
+    }
+}
+
 fun stopService(context: Context) {
     if (Build.VERSION.SDK_INT >= 26) {
         context.startForegroundService(Intent(context, PlaygroundService::class.java).apply { action = PlaygroundService.ACTION_STOP })
@@ -725,4 +897,9 @@ fun isMiuiRegion(): Boolean {
     } catch (_: Exception) {
         false
     }
+}
+
+fun isVivoDevice(): Boolean {
+    val manufacturer = Build.MANUFACTURER
+    return manufacturer.equals("vivo", ignoreCase = true)
 }

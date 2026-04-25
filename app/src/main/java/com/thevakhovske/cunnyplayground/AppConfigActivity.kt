@@ -91,6 +91,11 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     var luTextSource by remember { mutableStateOf(prefs.getString("${packageName}_text_source", "text") ?: "text") }
     var luRegex by remember { mutableStateOf(prefs.getString("${packageName}_regex_filter", "") ?: "") }
 
+    var originLeftSource by remember { mutableStateOf(prefs.getString("${packageName}_origin_left_source", "title") ?: "title") }
+    var originMainSource by remember { mutableStateOf(prefs.getString("${packageName}_origin_main_source", "text") ?: "text") }
+    var originLeftRegex by remember { mutableStateOf(prefs.getString("${packageName}_origin_left_regex", "") ?: "") }
+    var originMainRegex by remember { mutableStateOf(prefs.getString("${packageName}_origin_main_regex", "") ?: "") }
+
     val lastTitle = remember { prefs.getString("${packageName}_last_title", "N/A") ?: "N/A" }
     val lastText = remember { prefs.getString("${packageName}_last_text", "N/A") ?: "N/A" }
     val lastSubText = remember { prefs.getString("${packageName}_last_subtext", "N/A") ?: "N/A" }
@@ -121,12 +126,18 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
     }
 
-    val previewText = if (castMode == "hyperisland") {
-        val leftF = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
-        val mainF = applyRegex(getRawText(hypMainSource), hypMainRegex)
-        "L: $leftF  |  M: $mainF"
-    } else {
-        applyRegex(getRawText(luTextSource), luRegex)
+    val previewText = when (castMode) {
+        "hyperisland" -> {
+            val leftF = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
+            val mainF = applyRegex(getRawText(hypMainSource), hypMainRegex)
+            "L: $leftF  |  M: $mainF"
+        }
+        "originisland" -> {
+            val leftF = applyRegex(getRawText(originLeftSource), originLeftRegex)
+            val mainF = applyRegex(getRawText(originMainSource), originMainRegex)
+            "L: $leftF  |  M: $mainF"
+        }
+        else -> applyRegex(getRawText(luTextSource), luRegex)
     }
 
     fun saveSettings() {
@@ -137,6 +148,11 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                 putString("${packageName}_hyper_main_source", hypMainSource)
                 putString("${packageName}_hyper_left_regex", hypLeftRegex)
                 putString("${packageName}_hyper_main_regex", hypMainRegex)
+            } else if (castMode == "originisland") {
+                putString("${packageName}_origin_left_source", originLeftSource)
+                putString("${packageName}_origin_main_source", originMainSource)
+                putString("${packageName}_origin_left_regex", originLeftRegex)
+                putString("${packageName}_origin_main_regex", originMainRegex)
             } else {
                 putString("${packageName}_text_source", luTextSource)
                 putString("${packageName}_regex_filter", luRegex)
@@ -280,6 +296,47 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                         TextField(
                             value = hypMainRegex,
                             onValueChange = { hypMainRegex = it },
+                            label = "Main Segment Regex",
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            } else if (castMode == "originisland") {
+                item {
+                    SmallTitle("OriginIsland Mapping (Placeholder)")
+
+                    SmallTitle("Left Segment Source")
+                    val sources = listOf("title", "text", "subtext", "titletext")
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        sources.forEach { source ->
+                            RadioButtonPreference(
+                                selected = originLeftSource == source,
+                                onClick = { originLeftSource = source },
+                                title = source.replaceFirstChar { it.uppercase() }
+                            )
+                        }
+                        TextField(
+                            value = originLeftRegex,
+                            onValueChange = { originLeftRegex = it },
+                            label = "Left Segment Regex",
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SmallTitle("Main Segment Source")
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        sources.forEach { source ->
+                            RadioButtonPreference(
+                                selected = originMainSource == source,
+                                onClick = { originMainSource = source },
+                                title = source.replaceFirstChar { it.uppercase() }
+                            )
+                        }
+                        TextField(
+                            value = originMainRegex,
+                            onValueChange = { originMainRegex = it },
                             label = "Main Segment Regex",
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
