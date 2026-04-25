@@ -4,6 +4,14 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val gitCommitHash: String = try {
+    val process = Runtime.getRuntime().exec("git rev-parse --short=8 HEAD")
+    process.waitFor()
+    process.inputStream.bufferedReader().use { it.readLine()?.trim() ?: "unknown" }
+} catch (e: Exception) {
+    "unknown"
+}
+
 @Suppress("UnstableApiUsage")
 android {
     namespace = "com.thevakhovske.cunnyplayground"
@@ -14,7 +22,7 @@ android {
         minSdk = 36
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0-$gitCommitHash"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

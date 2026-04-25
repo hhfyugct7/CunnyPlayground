@@ -143,27 +143,17 @@ fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val isMiui = remember { isMiuiRegion() }
-<<<<<<< HEAD
     val isVivo = remember { isVivoDevice() }
-    val labels = remember(isMiui, isVivo) {
-        mutableListOf("Playground").apply {
-            if (isMiui) add("HyperIsland")
+    val tabPlayground = stringResource(R.string.tab_playground)
+    val tabHyperIsland = if (isMiui) stringResource(R.string.tab_hyperisland) else ""
+    val tabRecaster = stringResource(R.string.tab_recaster)
+    
+    val labels = remember(isMiui, isVivo, tabPlayground, tabHyperIsland, tabRecaster) {
+        mutableListOf(tabPlayground).apply {
+            if (isMiui) add(tabHyperIsland)
             if (isVivo) add("OriginIsland")
-            add("Re-Caster")
+            add(tabRecaster)
         }
-=======
-    val labels = if (isMiui) {
-        listOf(
-            stringResource(R.string.tab_playground),
-            stringResource(R.string.tab_hyperisland),
-            stringResource(R.string.tab_recaster)
-        )
-    } else {
-        listOf(
-            stringResource(R.string.tab_playground),
-            stringResource(R.string.tab_recaster)
-        )
->>>>>>> 51622b528d25432dc732c6d7ee46c8de84d17fb4
     }
 
     val scrollBehavior = MiuixScrollBehavior()
@@ -171,29 +161,15 @@ fun MainScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-<<<<<<< HEAD
                 title = when {
-                    isMiui && selectedTab == labels.indexOf("HyperIsland") -> "HyperIsland Playground"
+                    isMiui && selectedTab == labels.indexOf(tabHyperIsland) -> stringResource(R.string.title_hyperisland)
                     isVivo && selectedTab == labels.indexOf("OriginIsland") -> "OriginIsland Playground"
-                    selectedTab == labels.indexOf("Re-Caster") -> "Notification Re-Caster"
-                    else -> "Live Updates Playground"
-=======
-                title = if (isMiui) {
-                     when (selectedTab) {
-                         0 -> stringResource(R.string.title_playground)
-                         1 -> stringResource(R.string.title_hyperisland)
-                         else -> stringResource(R.string.title_recaster)
-                     }
-                } else {
-                     when (selectedTab) {
-                         0 -> stringResource(R.string.title_playground)
-                         else -> stringResource(R.string.title_recaster)
-                     }
->>>>>>> 51622b528d25432dc732c6d7ee46c8de84d17fb4
+                    selectedTab == labels.indexOf(tabRecaster) -> stringResource(R.string.title_recaster)
+                    else -> stringResource(R.string.title_playground)
                 },
                 actions = {
                     val tabLabel = labels.getOrNull(selectedTab)
-                    if ((tabLabel == "HyperIsland" || tabLabel == "OriginIsland")) {
+                    if (tabLabel == tabHyperIsland || tabLabel == "OriginIsland") {
                         val context = LocalContext.current
                         IconButton(onClick = { context.startActivity(Intent(context, ExamplesActivity::class.java)) }) {
                             Icon(imageVector = MiuixIcons.Settings, contentDescription = stringResource(R.string.settings))
@@ -206,9 +182,9 @@ fun MainScreen() {
         bottomBar = {
             NavigationBar {
                 labels.forEachIndexed { index, label ->
-                    val navIcon = when (labels[index]) {
-                        "Playground" -> MiuixIcons.Notes
-                        "HyperIsland" -> MiuixIcons.NotesFill
+                    val navIcon = when (label) {
+                        tabPlayground -> MiuixIcons.Notes
+                        tabHyperIsland -> MiuixIcons.NotesFill
                         "OriginIsland" -> MiuixIcons.NotesFill // Placeholder
                         else -> MiuixIcons.Send
                     }
@@ -223,10 +199,10 @@ fun MainScreen() {
         }
     ) { paddingValues ->
         when (labels.getOrNull(selectedTab)) {
-            "Playground" -> PlaygroundScreen(paddingValues, scrollBehavior)
-            "HyperIsland" -> HyperIslandScreen(paddingValues, scrollBehavior)
+            tabPlayground -> PlaygroundScreen(paddingValues, scrollBehavior)
+            tabHyperIsland -> HyperIslandScreen(paddingValues, scrollBehavior)
             "OriginIsland" -> OriginIslandScreen(paddingValues, scrollBehavior)
-            "Re-Caster" -> RecasterScreen(paddingValues, scrollBehavior, isMiui, isVivo)
+            tabRecaster -> RecasterScreen(paddingValues, scrollBehavior, isMiui, isVivo)
             else -> PlaygroundScreen(paddingValues, scrollBehavior)
         }
     }
@@ -967,11 +943,11 @@ fun isMiuiRegion(): Boolean {
     }
 }
 
-<<<<<<< HEAD
 fun isVivoDevice(): Boolean {
     val manufacturer = Build.MANUFACTURER
     return manufacturer.equals("vivo", ignoreCase = true)
-=======
+}
+
 fun isMiuiCN(): Boolean {
     return try {
         val buildClass = Class.forName("android.os.SystemProperties")
@@ -981,5 +957,4 @@ fun isMiuiCN(): Boolean {
     } catch (_: Exception) {
         false
     }
->>>>>>> 51622b528d25432dc732c6d7ee46c8de84d17fb4
 }

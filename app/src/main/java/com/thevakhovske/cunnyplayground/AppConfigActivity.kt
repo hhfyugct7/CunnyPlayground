@@ -155,29 +155,22 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
     }
 
-<<<<<<< HEAD
-    val previewText = when (castMode) {
-        "hyperisland" -> {
-            val leftF = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
-            val mainF = applyRegex(getRawText(hypMainSource), hypMainRegex)
-            "L: $leftF  |  M: $mainF"
-        }
-        "originisland" -> {
-            val leftF = applyRegex(getRawText(originLeftSource), originLeftRegex)
-            val mainF = applyRegex(getRawText(originMainSource), originMainRegex)
-            "L: $leftF  |  M: $mainF"
-        }
-        else -> applyRegex(getRawText(luTextSource), luRegex)
-    }
-=======
     val limit7Char = remember { prefs.getBoolean("limit_chip_7char", false) }
 
-    val previewLeftText = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
-    val previewMainText = applyRegex(getRawText(hypMainSource), hypMainRegex)
+    val previewLeftText = if (castMode == "originisland") {
+        applyRegex(getRawText(originLeftSource), originLeftRegex)
+    } else {
+        applyRegex(getRawText(hypLeftSource), hypLeftRegex)
+    }
+
+    val previewMainText = if (castMode == "originisland") {
+        applyRegex(getRawText(originMainSource), originMainRegex)
+    } else {
+        applyRegex(getRawText(hypMainSource), hypMainRegex)
+    }
 
     val previewStatusTextRaw = applyRegex(getRawText(luTextSource), luRegex)
     val previewStatusText = if (limit7Char && previewStatusTextRaw.length > 7) previewStatusTextRaw.take(7) else previewStatusTextRaw
->>>>>>> 51622b528d25432dc732c6d7ee46c8de84d17fb4
 
     fun saveSettings() {
         prefs.edit().apply {

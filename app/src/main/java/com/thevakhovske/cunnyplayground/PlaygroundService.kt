@@ -538,6 +538,144 @@ class PlaygroundService : Service() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        } else if (castMode == "originisland") {
+            try {
+                // Ensure required defaults for fallback shade rendering
+                builder.setSmallIcon(iconRes)
+                builder.setContentTitle(title)
+                builder.setContentText(text)
+                
+                val superXBundle = android.os.Bundle()
+                val progress = intent.getIntExtra("progress", 0)
+                val progressMax = intent.getIntExtra("progress_max", 0)
+                val isProgressMode = showProgress && progressMax > 0 && progress < progressMax
+                
+                val rawJson = intent.getStringExtra("raw_origin_json")
+                if (!rawJson.isNullOrBlank()) {
+                    // Manual UI testing injection based on JSON string
+                    // Not natively supported yet but leaving space since placeholder supplies it.
+                }
+
+                try {
+                    val clazz = android.app.NotificationManager::class.java
+                    val method = clazz.getMethod("setSuperXInfosSceneList", MutableList::class.java, MutableList::class.java, MutableList::class.java, MutableList::class.java)
+                    val sceneList = arrayListOf("TRAIN")
+                    val switchList = arrayListOf("true")
+                    val pkgList = arrayListOf(packageName)
+                    val pkgSwitchList = arrayListOf("true")
+                    method.invoke(notificationManager, sceneList, switchList, pkgList, pkgSwitchList)
+                } catch (e: Exception) {
+                    // Method may not exist on non-Vivo devices or newer versions
+                }
+
+                superXBundle.putInt("notification.superx.operation", 0)
+                superXBundle.putBoolean("notification.superx.showNotify", true)
+                superXBundle.putInt("notification.superx.template", if (isProgressMode) 2 else 1)
+                superXBundle.putString("notification.superx.scene", "TRAIN")
+                superXBundle.putInt("notification.superx.changedRecord", 0)
+                
+                // Base Infos
+                val baseInfos = android.os.Bundle()
+                baseInfos.putCharSequence("notification.superx.baseInfos.title", title)
+                baseInfos.putCharSequence("notification.superx.baseInfos.content", text)
+                
+                val launchIntent = packageManager.getLaunchIntentForPackage(packageName)!!
+                val clickResp = android.app.PendingIntent.getActivity(this, 0, launchIntent, android.app.PendingIntent.FLAG_IMMUTABLE)
+                superXBundle.putParcelable("notification.superx.clickResp", clickResp)
+                
+                // Capsule (Required for Island template resolution)
+                val capsuleBundle = android.os.Bundle()
+                capsuleBundle.putInt("notification.superx.capsule.state", 1)
+                capsuleBundle.putCharSequence("notification.superx.capsule.content", title)
+                if (iconObj != null && Build.VERSION.SDK_INT >= 23) capsuleBundle.putParcelable("notification.superx.capsule.icon", iconObj)
+                superXBundle.putBundle("notification.superx.capsule", capsuleBundle)
+                
+                if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                    baseInfos.putParcelable("notification.superx.baseInfos.icon", iconObj)
+                }
+                
+                if (!subtext.isNullOrBlank()) {
+                    baseInfos.putInt("notification.superx.baseInfos.subInfo", 1)
+                    baseInfos.putString("notification.superx.baseInfos.subText", subtext)
+                }
+                superXBundle.putBundle("notification.superx.baseInfos", baseInfos)
+                
+                // Infos (Core data mapping)
+                if (isProgressMode) {
+                    val infoBundle = android.os.Bundle()
+                    val progressPercent = (progress * 100) / progressMax
+                    infoBundle.putInt("notification.superx.infos.progress", progressPercent)
+                    infoBundle.putInt("notification.superx.infos.progressColor", androidx.core.content.ContextCompat.getColor(this, R.color.purple_500))
+                    val iconList = ArrayList<android.graphics.drawable.Icon>()
+                    // Provide required minimum (2-5) placeholder nodes
+                    if (Build.VERSION.SDK_INT >= 23) {
+                        iconList.add(android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_alert))
+                        iconList.add(android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_alert))
+                        infoBundle.putParcelableArrayList("notification.superx.infos.nodeIcon", iconList)
+                        infoBundle.putParcelable("notification.superx.infos.indicatorIcon", android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_alert))
+                        infoBundle.putInt("notification.superx.infos.indicatorLoc", 1)
+                    }
+                    superXBundle.putBundle("notification.superx.infos", infoBundle)
+                } else {
+                    val infoBundle = android.os.Bundle()
+                    infoBundle.putString("notification.superx.infos.describe", subtext ?: "Details")
+                    infoBundle.putString("notification.superx.infos.coreInfo", text)
+                    if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                        infoBundle.putParcelable("notification.superx.infos.image", iconObj)
+                    } else if (Build.VERSION.SDK_INT >= 23) {
+                        infoBundle.putParcelable("notification.superx.infos.image", android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_alert))
+                    }
+                    superXBundle.putBundle("notification.superx.infos", infoBundle)
+                }
+                
+                // Short Infos (Required for card expansion parity)
+                val shortInfos = android.os.Bundle()
+                shortInfos.putString("notification.superx.shortInfos.describeShort", subtext ?: "Details")
+                shortInfos.putString("notification.superx.shortInfos.coreInfoShort", text)
+                if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                    shortInfos.putParcelable("notification.superx.shortInfos.image", iconObj)
+                } else if (Build.VERSION.SDK_INT >= 23) {
+                    shortInfos.putParcelable("notification.superx.shortInfos.image", android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_alert))
+                }
+                superXBundle.putBundle("notification.superx.shortInfos", shortInfos)
+                
+                // Island Specs
+                val islandBundle = android.os.Bundle()
+                val originLeftText = intent.getStringExtra("origin_left_text")?.takeIf { it.isNotBlank() } ?: title
+                val originMainText = intent.getStringExtra("origin_main_text")?.takeIf { it.isNotBlank() } ?: text
+                
+                islandBundle.putInt("island.superx.leftTemplate", 1)
+                islandBundle.putInt("island.superx.rightTemplate", if (isProgressMode) 2 else 4)
+                
+                val leftBundle = android.os.Bundle()
+                leftBundle.putString("island.superx.leftInfo.content", originLeftText)
+                if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                    leftBundle.putParcelable("island.superx.leftInfo.icon", iconObj)
+                } else if (Build.VERSION.SDK_INT >= 23) {
+                    leftBundle.putParcelable("island.superx.leftInfo.icon", android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_alert))
+                }
+                islandBundle.putBundle("island.superx.leftInfo", leftBundle)
+                
+                val rightBundle = android.os.Bundle()
+                if (isProgressMode) {
+                    val progressPercent = (progress * 100) / progressMax
+                    rightBundle.putInt("island.superx.rightInfo.progressValue", progressPercent)
+                    rightBundle.putInt("island.superx.rightInfo.progressState", 0)
+                } else {
+                    rightBundle.putString("island.superx.rightInfo.content", originMainText)
+                    if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                        rightBundle.putParcelable("island.superx.rightInfo.icon", iconObj)
+                    }
+                }
+                islandBundle.putBundle("island.superx.rightInfo", rightBundle)
+                
+                superXBundle.putBundle("notification.superx.island", islandBundle)
+                
+                // Apply everything to standard builder
+                builder.extras.putAll(superXBundle)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         val notification = builder.build()
