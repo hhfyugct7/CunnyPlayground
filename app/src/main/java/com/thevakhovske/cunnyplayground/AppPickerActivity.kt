@@ -20,6 +20,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.core.graphics.drawable.toBitmap
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
@@ -37,6 +38,9 @@ import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
 import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class AppPickerActivity : ComponentActivity() {
 
@@ -53,7 +57,11 @@ class AppPickerActivity : ComponentActivity() {
     }
 }
 
-data class AppInfo(val name: String, val packageName: String, val icon: Drawable)
+object AppCache {
+    var cachedApps: List<AppInfo>? = null
+}
+
+data class AppInfo(val name: String, val packageName: String, val icon: ImageBitmap)
 
 @Composable
 fun AppPickerScreen(onBack: () -> Unit) {
@@ -62,23 +70,49 @@ fun AppPickerScreen(onBack: () -> Unit) {
     val prefs = context.getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
 
     var searchQuery by remember { mutableStateOf("") }
+    var debouncedQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(searchQuery) {
+        kotlinx.coroutines.delay(300)
+        debouncedQuery = searchQuery
+    }
+
     val selectedApps = remember {
         mutableStateListOf<String>().apply {
             addAll(prefs.getStringSet("cast_enabled_apps", emptySet()) ?: emptySet())
         }
     }
 
-    val allApps = remember {
-        pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            .map { AppInfo(it.loadLabel(pm).toString(), it.packageName, it.loadIcon(pm)) }
-            .sortedBy { it.name.lowercase() }
+    var allApps by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(AppCache.cachedApps == null) }
+
+    LaunchedEffect(Unit) {
+        if (AppCache.cachedApps != null) {
+            allApps = AppCache.cachedApps!!
+        } else {
+            withContext(Dispatchers.IO) {
+                val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                    .map { 
+                        AppInfo(
+                            it.loadLabel(pm).toString(), 
+                            it.packageName, 
+                            it.loadIcon(pm).toBitmap().asImageBitmap()
+                        ) 
+                    }
+                    .sortedBy { it.name.lowercase() }
+                
+                AppCache.cachedApps = apps
+                allApps = apps
+                isLoading = false
+            }
+        }
     }
 
-    val displayApps = remember(searchQuery) {
-        if (searchQuery.isEmpty()) allApps
+    val displayApps = remember(debouncedQuery, allApps) {
+        if (debouncedQuery.isEmpty()) allApps
         else allApps.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-            it.packageName.contains(searchQuery, ignoreCase = true)
+            it.name.contains(debouncedQuery, ignoreCase = true) ||
+            it.packageName.contains(debouncedQuery, ignoreCase = true)
         }
     }
 
@@ -87,10 +121,10 @@ fun AppPickerScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             SmallTopAppBar(
-                title = "Select Apps",
+                title = stringResource(R.string.title_select_apps),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, contentDescription = "Back")
+                        Icon(MiuixIcons.Back, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -106,23 +140,32 @@ fun AppPickerScreen(onBack: () -> Unit) {
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = "Search apps...",
+                    label = stringResource(R.string.label_search_apps),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
-            item {
-                Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
-                    displayApps.forEach { app ->
-                        val isSelected = selectedApps.contains(app.packageName)
+            if (isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        top.yukonga.miuix.kmp.basic.Text(stringResource(R.string.msg_loading_apps))
+                    }
+                }
+            } else {
+                items(
+                    items = displayApps,
+                    key = { it.packageName }
+                ) { app ->
+                    val isSelected = selectedApps.contains(app.packageName)
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth()) {
                         BasicComponent(
                             title = app.name,
                             summary = app.packageName,
                             startAction = {
                                 Image(
-                                    painter = BitmapPainter(app.icon.toBitmap().asImageBitmap()),
+                                    bitmap = app.icon,
                                     contentDescription = null,
                                     modifier = Modifier.size(40.dp)
                                 )
@@ -137,6 +180,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                                             selectedApps.add(app.packageName)
                                         }
                                         prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                        context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
                                     }
                                 )
                             },
@@ -147,6 +191,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                                     selectedApps.add(app.packageName)
                                 }
                                 prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
                             }
                         )
                     }

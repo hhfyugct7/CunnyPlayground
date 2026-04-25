@@ -1,0 +1,111 @@
+<resources>
+    <string name="app_name">CunnyPlayground</string>
+    
+    <string name="tab_playground">Spielplatz</string>
+    <string name="tab_hyperisland">HyperIsland</string>
+    <string name="tab_recaster">Recaster</string>
+    
+    <string name="title_playground">Live Updates Spielplatz</string>
+    <string name="title_hyperisland">HyperIsland Spielplatz</string>
+    <string name="title_recaster">Benachrichtigungs-Recaster</string>
+    
+    <string name="settings">Einstellungen</string>
+    <string name="back">Zurück</string>
+    
+    <string name="section_notif_info">Benachrichtigungsinformationen</string>
+    <string name="label_title">Titel</string>
+    <string name="label_text">Text</string>
+    <string name="label_subtext">Subtext</string>
+    <string name="label_chip_text">Status-Chip-Text</string>
+    
+    <string name="section_settings">Einstellungen</string>
+    <string name="pref_ongoing">Dauerhaft</string>
+    <string name="pref_promoted">Priorisiert (Status-Chip)</string>
+    <string name="pref_chrono">Chronometer</string>
+    <string name="pref_show_progress">Fortschrittsbalken anzeigen</string>
+    
+    <string name="section_icon">Symbol</string>
+    <string name="icon_timer">Timer</string>
+    <string name="icon_call">Anruf</string>
+    <string name="icon_alert">Alarm</string>
+    <string name="icon_default">Standard</string>
+    
+    <string name="btn_post">Senden</string>
+    <string name="btn_update">Aktualisieren</string>
+    <string name="btn_clear_all">Alle löschen</string>
+    
+    <string name="section_posted_notifs">Gesendete Benachrichtigungen</string>
+    
+    <string name="section_hyper_payload">HyperIsland-Payload</string>
+    <string name="label_left_text">Linker Text</string>
+    <string name="label_main_text">Haupttext</string>
+    <string name="section_raw_json">Roh-JSON (Optional)</string>
+    <string name="label_custom_json">Benutzerdefinierte JSON-Payload</string>
+    <string name="btn_post_hyper">HyperIsland senden</string>
+    
+    <string name="section_casting_settings">Übertragungseinstellungen</string>
+    <string name="pref_cast_notifs">Benachrichtigungen übertragen</string>
+    <string name="pref_cast_notifs_summary">Abgefangene Benachrichtigungen als Live Updates erneut übertragen</string>
+    <string name="pref_use_app_icon">Originale App-Symbole verwenden</string>
+    <string name="pref_use_app_icon_summary">App-Symbol anstelle des Benachrichtigungssymbols verwenden</string>
+    <string name="pref_show_progress_percent">Fortschritt in Prozent anzeigen</string>
+    <string name="pref_show_progress_percent_summary">Fortschritt in Prozent im Status-Chip anzeigen</string>
+    <string name="pref_limit_chip">(Nur AOSP) Chip-Text begrenzen</string>
+    <string name="pref_limit_chip_summary">Status-Chip-Text auf 7 Zeichen begrenzen</string>
+    
+    <string name="section_cast_as">Übertragen als</string>
+    <string name="mode_live_updates">Live Updates</string>
+    <string name="mode_hyperisland">HyperIsland</string>
+    
+    <string name="section_actions">Aktionen</string>
+    <string name="action_grant_access">Benachrichtigungszugriff gewähren</string>
+    <string name="action_grant_access_summary">Erforderlich zum Abfangen von Benachrichtigungen</string>
+    <string name="action_select_apps">Apps zum Übertragen auswählen</string>
+    <string name="summary_apps_selected">%d Apps ausgewählt</string>
+    <string name="summary_app_selected">1 App ausgewählt</string>
+    <string name="section_enabled_apps">Aktivierte Apps (%d)</string>
+    
+    <string name="title_select_apps">Apps auswählen</string>
+    <string name="label_search_apps">Apps suchen...</string>
+    <string name="msg_loading_apps">Installierte Anwendungen werden geladen...</string>
+    
+    <string name="section_app_info">App-Informationen</string>
+    <string name="section_output_preview">Ausgabevorschau</string>
+    <string name="section_icon_source">Symbolquelle</string>
+    <string name="pref_icon_app">Originales App-Symbol</string>
+    <string name="pref_icon_notif">Standard-Benachrichtigungssymbol</string>
+    <string name="pref_icon_extracted_none">Extrahierte Ressource (Noch keine Symbole entdeckt)</string>
+    <string name="pref_icon_extracted">Extrahierte Ressource</string>
+    
+    <string name="section_hyper_mapping">HyperIsland-Mapping</string>
+    <string name="section_left_source">Quelle des linken Segments</string>
+    <string name="label_left_regex">Regex für linkes Segment</string>
+    <string name="section_main_source">Quelle des Hauptsegments</string>
+    <string name="label_main_regex">Regex für Hauptsegment</string>
+    
+    <string name="section_lu_mapping">Live Update-Mapping</string>
+    <string name="section_text_source">Textquelle</string>
+    <string name="label_text_regex">Text-Regex-Filter</string>
+    
+    <string name="section_discovered_res">Entdeckte Ressourcen</string>
+    <string name="section_last_render">Letzter Benachrichtigungs-Render</string>
+    <string name="section_raw_data">Neueste Rohdaten</string>
+    <string name="section_raw_dump">Roh-Dump</string>
+    <string name="btn_copy_dump">Roh-Dump kopieren</string>
+    <string name="btn_save">Speichern</string>
+    <string name="msg_config_saved">Konfiguration gespeichert</string>
+    <string name="msg_dump_copied">Dump kopiert</string>
+    
+    <string name="warning_cn_rom_title">China ROM Warnung!</string>
+    <string name="warning_cn_rom_msg">Xiaomi blockiert HyperIsland-Benachrichtigungen von Drittanbietern auf chinesischen ROMs.\nHyperIsland wird möglicherweise nicht angezeigt.\nBitte:\n\u2022 Blockieren Sie den Netzwerkzugriff für das Xiaomi Service Framework\n\u2022 Wenn Sie Root-Rechte haben, aktivieren Sie \'Disable focus notification whitelist\' in Hypercelier.</string>
+
+    <string name="channel_name">Live Updates</string>
+    <string name="channel_desc">Kanal für Live Updates Spielplatz</string>
+
+    <string-array name="hype_source_options">
+        <item>Titel</item>
+        <item>Text</item>
+        <item>Subtext</item>
+        <item>Titel + Text</item>
+    </string-array>
+</resources>

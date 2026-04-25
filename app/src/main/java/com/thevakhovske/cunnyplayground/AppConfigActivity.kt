@@ -21,7 +21,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -99,10 +105,33 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     val lastTitle = remember { prefs.getString("${packageName}_last_title", "N/A") ?: "N/A" }
     val lastText = remember { prefs.getString("${packageName}_last_text", "N/A") ?: "N/A" }
     val lastSubText = remember { prefs.getString("${packageName}_last_subtext", "N/A") ?: "N/A" }
-    val lastDump = remember { prefs.getString("${packageName}_last_raw_dump", "Waiting for next interception...") ?: "Waiting..." }
+    val lastDump = remember { prefs.getString("${packageName}_last_raw_dump", context.getString(R.string.section_raw_dump)) ?: "Waiting..." }
 
     val drawablesStr = remember { prefs.getString("${packageName}_last_drawables", "") ?: "" }
     val drawableIds = remember { drawablesStr.split(",").mapNotNull { it.trim().toIntOrNull() }.distinct() }
+
+    val sourceContext = remember(packageName) {
+        try { context.createPackageContext(packageName, 0) } catch (_: Exception) { null }
+    }
+
+    val previewIconBitmap = remember(iconSource, appIcon, drawableIds, sourceContext) {
+        val drawable = when (iconSource) {
+            "extracted" -> {
+                val id = drawableIds.firstOrNull()
+                if (id != null && sourceContext != null) {
+                    try { ResourcesCompat.getDrawable(sourceContext.resources, id, sourceContext.theme) } catch (_: Exception) { appIcon }
+                } else appIcon
+            }
+            "notification" -> {
+                val iconFile = File(context.filesDir, "renders/${packageName}_small_icon.png")
+                if (iconFile.exists()) {
+                    try { android.graphics.drawable.BitmapDrawable(context.resources, BitmapFactory.decodeFile(iconFile.absolutePath)) } catch (_: Exception) { appIcon }
+                } else appIcon
+            }
+            else -> appIcon
+        }
+        drawable?.toBitmap()?.asImageBitmap()
+    }
 
     fun applyRegex(rawText: String, regexStr: String): String {
         if (regexStr.isEmpty()) return rawText
@@ -126,6 +155,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         else -> prefs.getString("${packageName}_last_text", "Text") ?: ""
     }
 
+<<<<<<< HEAD
     val previewText = when (castMode) {
         "hyperisland" -> {
             val leftF = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
@@ -139,6 +169,15 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         }
         else -> applyRegex(getRawText(luTextSource), luRegex)
     }
+=======
+    val limit7Char = remember { prefs.getBoolean("limit_chip_7char", false) }
+
+    val previewLeftText = applyRegex(getRawText(hypLeftSource), hypLeftRegex)
+    val previewMainText = applyRegex(getRawText(hypMainSource), hypMainRegex)
+
+    val previewStatusTextRaw = applyRegex(getRawText(luTextSource), luRegex)
+    val previewStatusText = if (limit7Char && previewStatusTextRaw.length > 7) previewStatusTextRaw.take(7) else previewStatusTextRaw
+>>>>>>> 51622b528d25432dc732c6d7ee46c8de84d17fb4
 
     fun saveSettings() {
         prefs.edit().apply {
@@ -159,7 +198,8 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             }
             apply()
         }
-        Toast.makeText(context, "Configuration Saved", Toast.LENGTH_SHORT).show()
+        context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
+        Toast.makeText(context, context.getString(R.string.msg_config_saved), Toast.LENGTH_SHORT).show()
         onSave()
     }
 
@@ -171,14 +211,14 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                 title = appLabel,
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(MiuixIcons.Back, contentDescription = "Back")
+                        Icon(MiuixIcons.Back, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     Button(
                         onClick = { saveSettings() },
                         modifier = Modifier.padding(end = 8.dp)
-                    ) { Text("Save") }
+                    ) { Text(stringResource(R.string.btn_save)) }
                 }
             )
         }
@@ -191,7 +231,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         ) {
             // App Info
             item {
-                SmallTitle("App Information")
+                SmallTitle(stringResource(R.string.section_app_info))
                 Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                     BasicComponent(
                         title = appLabel,
@@ -211,49 +251,118 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
 
             // Preview
             item {
-                SmallTitle("Output Preview")
+                SmallTitle(stringResource(R.string.section_output_preview))
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    // Center the preview
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp, horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        appIcon?.let {
-                            Image(
-                                painter = BitmapPainter(it.toBitmap().asImageBitmap()),
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp)
-                            )
+                        if (castMode == "hyperisland") {
+                            // Hyperisland Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                    .background(androidx.compose.ui.graphics.Color.Black)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                previewIconBitmap?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20))
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = previewLeftText,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 100.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                // Camera Cutout Placeholder
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(androidx.compose.ui.graphics.Color.White)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = previewMainText,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 140.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                        } else {
+                            // Live Updates Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                    .background(androidx.compose.ui.graphics.Color.Black)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                previewIconBitmap?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20))
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = previewStatusText,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 100.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
                         }
-                        Text(
-                            text = previewText,
-                            modifier = Modifier.weight(1f)
-                        )
                     }
                 }
             }
 
             // Icon Source
             item {
-                SmallTitle("Icon Source")
+                SmallTitle(stringResource(R.string.section_icon_source))
                 Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                     RadioButtonPreference(
                         selected = iconSource == "app",
                         onClick = { iconSource = "app" },
-                        title = "Original App Icon"
+                        title = stringResource(R.string.pref_icon_app)
                     )
                     RadioButtonPreference(
                         selected = iconSource == "notification",
                         onClick = { iconSource = "notification" },
-                        title = "Default Notification Icon"
+                        title = stringResource(R.string.pref_icon_notif)
                     )
                     RadioButtonPreference(
                         selected = iconSource == "extracted",
                         onClick = { iconSource = "extracted" },
-                        title = if (drawableIds.isEmpty()) "Extracted Resource (No icons discovered yet)" else "Extracted Resource",
+                        title = if (drawableIds.isEmpty()) stringResource(R.string.pref_icon_extracted_none) else stringResource(R.string.pref_icon_extracted),
                         enabled = drawableIds.isNotEmpty()
                     )
                 }
@@ -262,41 +371,47 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             // Mode-specific Config
             if (castMode == "hyperisland") {
                 item {
-                    SmallTitle("HyperIsland Mapping")
+                    SmallTitle(stringResource(R.string.section_hyper_mapping))
 
-                    SmallTitle("Left Segment Source")
+                    SmallTitle(stringResource(R.string.section_left_source))
                     val sources = listOf("title", "text", "subtext", "titletext")
+                    val sourceLabels = listOf(
+                        stringResource(R.string.label_title),
+                        stringResource(R.string.label_text),
+                        stringResource(R.string.label_subtext),
+                        "${stringResource(R.string.label_title)}+${stringResource(R.string.label_text)}"
+                    )
                     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
-                        sources.forEach { source ->
+                        sources.forEachIndexed { index, source ->
                             RadioButtonPreference(
                                 selected = hypLeftSource == source,
                                 onClick = { hypLeftSource = source },
-                                title = source.replaceFirstChar { it.uppercase() }
+                                title = sourceLabels[index]
                             )
                         }
                         TextField(
                             value = hypLeftRegex,
                             onValueChange = { hypLeftRegex = it },
-                            label = "Left Segment Regex",
+                            label = stringResource(R.string.label_left_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    SmallTitle("Main Segment Source")
+                    SmallTitle(stringResource(R.string.section_main_source))
                     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
-                        sources.forEach { source ->
+                        sources.forEachIndexed { index, source ->
                             RadioButtonPreference(
                                 selected = hypMainSource == source,
                                 onClick = { hypMainSource = source },
-                                title = source.replaceFirstChar { it.uppercase() }
+                                title = sourceLabels[index]
                             )
                         }
                         TextField(
                             value = hypMainRegex,
                             onValueChange = { hypMainRegex = it },
-                            label = "Main Segment Regex",
+                            label = stringResource(R.string.label_main_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
@@ -344,35 +459,35 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                 }
             } else {
                 item {
-                    SmallTitle("Live Update Mapping")
+                    SmallTitle(stringResource(R.string.section_lu_mapping))
 
-                    SmallTitle("Text Source")
+                    SmallTitle(stringResource(R.string.section_text_source))
                     Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                         RadioButtonPreference(
                             selected = luTextSource == "title",
                             onClick = { luTextSource = "title" },
-                            title = "Title"
+                            title = stringResource(R.string.label_title)
                         )
                         RadioButtonPreference(
                             selected = luTextSource == "text",
                             onClick = { luTextSource = "text" },
-                            title = "Text"
+                            title = stringResource(R.string.label_text)
                         )
                         RadioButtonPreference(
                             selected = luTextSource == "subtext",
                             onClick = { luTextSource = "subtext" },
-                            title = "SubText"
+                            title = stringResource(R.string.label_subtext)
                         )
                         RadioButtonPreference(
                             selected = luTextSource == "titletext",
                             onClick = { luTextSource = "titletext" },
-                            title = "Title+Text"
+                            title = "${stringResource(R.string.label_title)}+${stringResource(R.string.label_text)}"
                         )
 
                         TextField(
                             value = luRegex,
                             onValueChange = { luRegex = it },
-                            label = "Text Regex Filter",
+                            label = stringResource(R.string.label_text_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
                     }
@@ -382,11 +497,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             // Discovered Resources
             if (drawableIds.isNotEmpty()) {
                 item {
-                    SmallTitle("Discovered Resources")
-
-                    val sourceContext = remember(packageName) {
-                        try { context.createPackageContext(packageName, 0) } catch (_: Exception) { null }
-                    }
+                    SmallTitle(stringResource(R.string.section_discovered_res))
 
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -420,7 +531,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             item {
                 val renderFile = remember(packageName) { File(context.filesDir, "renders/${packageName}.png") }
                 if (renderFile.exists()) {
-                    SmallTitle("Last Notification Render")
+                    SmallTitle(stringResource(R.string.section_last_render))
                     val bitmap = remember(packageName) {
                         try { BitmapFactory.decodeFile(renderFile.absolutePath) } catch (_: Exception) { null }
                     }
@@ -442,7 +553,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
 
             // Raw Data
             item {
-                SmallTitle("Latest Raw Data")
+                SmallTitle(stringResource(R.string.section_raw_data))
                 Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
                     BasicComponent(title = "Title: $lastTitle")
                     BasicComponent(title = "Text: $lastText")
@@ -451,7 +562,7 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
             }
 
             item {
-                SmallTitle("Raw Dump")
+                SmallTitle(stringResource(R.string.section_raw_dump))
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -466,10 +577,10 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Notification Dump", lastDump))
-                        Toast.makeText(context, "Dump copied", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.msg_dump_copied), Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                ) { Text("Copy Raw Dump") }
+                ) { Text(stringResource(R.string.btn_copy_dump)) }
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }

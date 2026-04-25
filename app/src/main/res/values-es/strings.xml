@@ -1,0 +1,111 @@
+<resources>
+    <string name="app_name">CunnyPlayground</string>
+    
+    <string name="tab_playground">Campo de juegos</string>
+    <string name="tab_hyperisland">HyperIsland</string>
+    <string name="tab_recaster">Recaster</string>
+    
+    <string name="title_playground">Campo de juegos Live Updates</string>
+    <string name="title_hyperisland">Campo de juegos HyperIsland</string>
+    <string name="title_recaster">Recaster de notificaciones</string>
+    
+    <string name="settings">Ajustes</string>
+    <string name="back">Atrás</string>
+    
+    <string name="section_notif_info">Información de notificación</string>
+    <string name="label_title">Título</string>
+    <string name="label_text">Texto</string>
+    <string name="label_subtext">Subtexto</string>
+    <string name="label_chip_text">Texto del chip de estado</string>
+    
+    <string name="section_settings">Ajustes</string>
+    <string name="pref_ongoing">Permanente</string>
+    <string name="pref_promoted">Priorizado (Chip de estado)</string>
+    <string name="pref_chrono">Cronómetro</string>
+    <string name="pref_show_progress">Mostrar barra de progreso</string>
+    
+    <string name="section_icon">Icono</string>
+    <string name="icon_timer">Temporizador</string>
+    <string name="icon_call">Llamada</string>
+    <string name="icon_alert">Alerta</string>
+    <string name="icon_default">Por defecto</string>
+    
+    <string name="btn_post">Enviar</string>
+    <string name="btn_update">Actualizar</string>
+    <string name="btn_clear_all">Limpiar todo</string>
+    
+    <string name="section_posted_notifs">Notificaciones enviadas</string>
+    
+    <string name="section_hyper_payload">Payload de HyperIsland</string>
+    <string name="label_left_text">Texto izquierdo</string>
+    <string name="label_main_text">Texto principal</string>
+    <string name="section_raw_json">JSON original (Opcional)</string>
+    <string name="label_custom_json">Payload JSON personalizado</string>
+    <string name="btn_post_hyper">Enviar HyperIsland</string>
+    
+    <string name="section_casting_settings">Ajustes de transmisión</string>
+    <string name="pref_cast_notifs">Transmitir notificaciones</string>
+    <string name="pref_cast_notifs_summary">Transmitir notificaciones interceptadas como Live Updates</string>
+    <string name="pref_use_app_icon">Usar iconos de aplicaciones originales</string>
+    <string name="pref_use_app_icon_summary">Usar icono de la aplicación en lugar del icono de notificación</string>
+    <string name="pref_show_progress_percent">Mostrar porcentaje de progreso</string>
+    <string name="pref_show_progress_percent_summary">Mostrar porcentaje de progreso en el chip de estado</string>
+    <string name="pref_limit_chip">(Solo AOSP) Limitar texto del chip</string>
+    <string name="pref_limit_chip_summary">Limitar texto del chip de estado a 7 caracteres</string>
+    
+    <string name="section_cast_as">Transmitir como</string>
+    <string name="mode_live_updates">Live Updates</string>
+    <string name="mode_hyperisland">HyperIsland</string>
+    
+    <string name="section_actions">Acciones</string>
+    <string name="action_grant_access">Conceder acceso a notificaciones</string>
+    <string name="action_grant_access_summary">Requerido para interceptar notificaciones</string>
+    <string name="action_select_apps">Seleccionar aplicaciones para transmitir</string>
+    <string name="summary_apps_selected">%d aplicaciones seleccionadas</string>
+    <string name="summary_app_selected">1 aplicación seleccionada</string>
+    <string name="section_enabled_apps">Aplicaciones habilitadas (%d)</string>
+    
+    <string name="title_select_apps">Seleccionar aplicaciones</string>
+    <string name="label_search_apps">Buscar aplicaciones...</string>
+    <string name="msg_loading_apps">Cargando aplicaciones instaladas...</string>
+    
+    <string name="section_app_info">Información de la aplicación</string>
+    <string name="section_output_preview">Vista previa de salida</string>
+    <string name="section_icon_source">Fuente del icono</string>
+    <string name="pref_icon_app">Icono de aplicación original</string>
+    <string name="pref_icon_notif">Icono de notificación por defecto</string>
+    <string name="pref_icon_extracted_none">Recurso extraído (No se han descubierto iconos)</string>
+    <string name="pref_icon_extracted">Recurso extraído</string>
+    
+    <string name="section_hyper_mapping">Mapeo de HyperIsland</string>
+    <string name="section_left_source">Fuente del segmento izquierdo</string>
+    <string name="label_left_regex">Regex del segmento izquierdo</string>
+    <string name="section_main_source">Fuente del segmento principal</string>
+    <string name="label_main_regex">Regex del segmento principal</string>
+    
+    <string name="section_lu_mapping">Mapeo de Live Update</string>
+    <string name="section_text_source">Fuente de texto</string>
+    <string name="label_text_regex">Filtro Regex de texto</string>
+    
+    <string name="section_discovered_res">Recursos descubiertos</string>
+    <string name="section_last_render">Último render de notificación</string>
+    <string name="section_raw_data">Últimos datos originales</string>
+    <string name="section_raw_dump">Dump original</string>
+    <string name="btn_copy_dump">Copiar dump original</string>
+    <string name="btn_save">Guardar</string>
+    <string name="msg_config_saved">Configuración guardada</string>
+    <string name="msg_dump_copied">Dump copiado</string>
+    
+    <string name="warning_cn_rom_title">¡Advertencia de ROM de China!</string>
+    <string name="warning_cn_rom_msg">Xiaomi bloquea las notificaciones de HyperIsland de terceros en las ROMs chinas.\nHyperIsland no aparecerá.\nPor favor:\n\u2022 Bloquee el acceso a la red de Xiaomi Service Framework\n\u2022 Si tiene root, active \'Disable focus notification whitelist\' en Hypercelier.</string>
+
+    <string name="channel_name">Live Updates</string>
+    <string name="channel_desc">Canal para el campo de juegos de Live Updates</string>
+
+    <string-array name="hype_source_options">
+        <item>Título</item>
+        <item>Texto</item>
+        <item>Subtexto</item>
+        <item>Título + Texto</item>
+    </string-array>
+</resources>
