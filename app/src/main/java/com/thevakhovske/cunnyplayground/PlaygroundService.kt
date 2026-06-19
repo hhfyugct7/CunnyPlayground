@@ -101,7 +101,10 @@ class PlaygroundService : Service() {
                 val toCancel = activeIds.toList()
                 activeIds.clear()
                 val tearDown = {
-                    toCancel.forEach { notificationManager.cancel(it) }
+                    toCancel.forEach {
+                        notificationManager.cancel(OriginIslandConstants.SUPERX_TAG, it)
+                        notificationManager.cancel(it)
+                    }
                     stopForeground(true)
                     stopSelf()
                 }
@@ -122,14 +125,19 @@ class PlaygroundService : Service() {
         if (scene != null) {
             endOrigin(id, scene)
             // Remove the host shortly after, giving the SuperX engine time to process the end.
-            mainHandler.postDelayed({ notificationManager.cancel(id) }, 350)
+            // Must cancel with the fixed tag — that's how OriginOS tracks the atomic notification.
+            mainHandler.postDelayed({ notificationManager.cancel(OriginIslandConstants.SUPERX_TAG, id) }, 350)
         } else {
             notificationManager.cancel(id)
         }
         activeIds.remove(id)
     }
 
-    /** Posts an operation=2 SuperX bundle on [id] so OriginOS dismisses the atomic notification/island. */
+    /**
+     * Posts an operation=2 SuperX bundle on [id] so OriginOS dismisses the atomic notification/island.
+     * Per 技术规范 §3.3 the end/cancel must use the fixed tag "VIVO_SUPERX_TAG"; a plain untagged
+     * cancel creates a separate notification and leaves the island lingering.
+     */
     private fun endOrigin(id: Int, scene: String) {
         try {
             OriginIslandBuilder.grantScenes(this)
@@ -140,7 +148,7 @@ class PlaygroundService : Service() {
                 .setContentText("")
                 .setSilent(true)
                 .setExtras(OriginIslandBuilder.buildEndBundle(scene))
-            notificationManager.notify(id, endNb.build())
+            notificationManager.notify(OriginIslandConstants.SUPERX_TAG, id, endNb.build())
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -625,22 +633,48 @@ class PlaygroundService : Service() {
             // Progress (0..100) for the progress island / progress-visual template.
             val progress = intent.getIntExtra("progress", 0)
             val progressMax = intent.getIntExtra("progress_max", 0)
+            val isIndeterminate = intent.getBooleanExtra("progress_indeterminate", false)
             val showProgress = intent.getBooleanExtra("show_progress", false)
+            val hasProgress = showProgress && progressMax > 0
             val derivedProgress = if (progressMax > 0) (progress * 100 / progressMax).coerceIn(0, 100) else 50
 
+            // Large icon (source big icon) for richer base / info / nav / short artwork.
+            val largeIcon: Icon? = run {
+                val obj = if (Build.VERSION.SDK_INT >= 23) intent.getParcelableExtra<Icon>("large_icon_obj") else null
+                obj ?: intent.getParcelableExtra<Bitmap>("large_icon_bitmap")?.let { iconFromBitmapCapped(it) }
+            }
+
+            // Notification action buttons → OriginIsland clickable surfaces (capsule/island/card/images).
+            val rawActions = if (Build.VERSION.SDK_INT >= 34) {
+                intent.getParcelableArrayListExtra("actions", Notification.Action::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableArrayListExtra<Notification.Action>("actions")
+            }
+            val originActions = rawActions.orEmpty().mapNotNull { a ->
+                val pi = a.actionIntent ?: return@mapNotNull null
+                OriginIslandBuilder.OriginAction(
+                    title = a.title?.toString() ?: "Action",
+                    icon = if (Build.VERSION.SDK_INT >= 23) a.getIcon() else null,
+                    pendingIntent = pi
+                )
+            }
+            val hasActions = originActions.isNotEmpty()
+
             // Island parameters: explicit (OriginIsland playground / per-app config) or Auto.
-            // "Auto" (0 or out-of-range) picks the template by content — progress template when
-            // the source notification carries progress, mirroring the HyperIsland conditional path.
+            // Auto picks templates by content — progress when present, else clickable actions, else priority.
             val templateExtra = intent.getIntExtra("oi_template", 0)
             val template = when {
-                templateExtra in 1..4 -> templateExtra
-                showProgress && progressMax > 0 -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
+                templateExtra in 1..5 -> templateExtra
+                hasProgress -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
+                hasActions -> OriginIslandConstants.TEMPLATE_BASE
                 else -> OriginIslandConstants.TEMPLATE_PRIORITY_INFO
             }
             val rightTemplateExtra = intent.getIntExtra("oi_right_template", 0)
             val rightTemplate = when {
                 rightTemplateExtra in 1..6 -> rightTemplateExtra
-                showProgress && progressMax > 0 -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
+                hasProgress -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
+                hasActions -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_ICON_TEXT
                 else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT
             }
             val leftContent = intent.getStringExtra("oi_left_content")
@@ -652,15 +686,24 @@ class PlaygroundService : Service() {
             val extra3 = intent.getStringExtra("oi_extra3") ?: ""
             val extra4 = intent.getStringExtra("oi_extra4") ?: ""
             val scene = intent.getStringExtra("oi_scene") ?: "NAVIGATION"
+            val navMsg = intent.getStringExtra("oi_nav_msg")
             val oiProgress = intent.getIntExtra("oi_progress", derivedProgress)
             val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), Color.WHITE)
             val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), Color.BLACK)
+            val keepDuration = intent.getIntExtra("oi_keep_duration", 0)
+            val forceShow = intent.getBooleanExtra("oi_force_show", false)
+            val dismissWhenKill = intent.getBooleanExtra("oi_dismiss_when_kill", true)
+            val islandShowTime = intent.getIntExtra("oi_island_show_time", 0)
+            val progressState = if (isIndeterminate) 0 else 1
 
-            // Landing page: launch our own app on capsule/island tap.
+            // Lifecycle: first post for this id = create (0); a repeat while still active = update (1).
+            val operation = if (originScenes.containsKey(notificationId)) 1 else 0
+
+            // Landing page fallback: launch our own app on tap when no action intent is available.
             val launch = packageManager.getLaunchIntentForPackage(packageName)
                 ?: Intent(this, MainActivity::class.java)
             val clickResp = PendingIntent.getActivity(
-                this, 0, launch,
+                this, notificationId, launch,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
@@ -681,7 +724,18 @@ class PlaygroundService : Service() {
                 bgColor = bgColor,
                 fgColor = fgColor,
                 scene = scene,
-                clickResp = clickResp
+                clickResp = clickResp,
+                operation = operation,
+                largeIcon = largeIcon,
+                subText = subtext,
+                navMsg = navMsg,
+                actions = originActions,
+                keepDuration = keepDuration,
+                sound = false,
+                dismissWhenKill = dismissWhenKill,
+                islandShowTime = islandShowTime,
+                forceShow = forceShow,
+                progressState = progressState
             )
 
             // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
@@ -696,12 +750,13 @@ class PlaygroundService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            // Build like superx_demo (NOT ongoing, so it stays user-dismissable), attach SuperX data.
+            // Build like superx_demo: NOT ongoing (stays dismissable), NOT autoCancel (§5.7 caution).
             val nb = NotificationCompat.Builder(this, ORIGIN_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setOnlyAlertOnce(true)
                 .setOngoing(false)
+                .setAutoCancel(false)
                 .setDeleteIntent(deletePi)
                 .setExtras(bundle)
             if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
@@ -712,10 +767,26 @@ class PlaygroundService : Service() {
             if (!sourceApp.isNullOrEmpty()) nb.setSubText(sourceApp)
 
             originScenes[notificationId] = scene
-            notificationManager.notify(notificationId, nb.build())
+            // Post with the fixed SuperX tag so OriginOS can later match & dismiss it (§3.3).
+            notificationManager.notify(OriginIslandConstants.SUPERX_TAG, notificationId, nb.build())
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    /** Builds an Icon from a bitmap, scaled so neither side exceeds 1000px (技术规范 §5.15). */
+    private fun iconFromBitmapCapped(bmp: Bitmap): Icon {
+        val max = 1000
+        val scaled = if (bmp.width > max || bmp.height > max) {
+            val ratio = minOf(max.toFloat() / bmp.width, max.toFloat() / bmp.height)
+            Bitmap.createScaledBitmap(
+                bmp,
+                (bmp.width * ratio).toInt().coerceAtLeast(1),
+                (bmp.height * ratio).toInt().coerceAtLeast(1),
+                true
+            )
+        } else bmp
+        return Icon.createWithBitmap(scaled)
     }
 
     private fun createNotificationChannel(channelId: String) {

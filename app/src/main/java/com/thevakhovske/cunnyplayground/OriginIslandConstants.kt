@@ -128,6 +128,69 @@ object OriginIslandConstants {
     const val TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT = 6 // 胶囊文本
     // 原子岛字段定义 END
 
+    // ── Additional core params (原子通知技术规范 2.1) ──
+    const val BUNDLE_KEY_NEW_NODE = "notification.superx.newNode" // 新节点，胶囊等处展示重要节点（如接单1，送外卖2）
+    const val BUNDLE_KEY_DISPLAYS = "notification.superx.displays" // 触点 bitmask（不传为默认触点）
+    const val BUNDLE_KEY_SOUND = "notification.superx.sound" // 创建时是否响铃，默认true
+    const val BUNDLE_KEY_DISMISS_WHEN_KILL = "notification.superx.dismissWhenKill" // 杀进程时是否清除，默认false
+    const val BUNDLE_KEY_CUSTOM_SUPERX = "notification.superx.customSuperx" // 扩展信息 json（小v建议）
+
+    // 触点 (displays) bitmask
+    const val DISPLAY_NOTIFICATION = 0x001
+    const val DISPLAY_LOCKSCREEN = 0x010
+    const val DISPLAY_STATUSBAR = 0x100
+    const val DISPLAY_WIDGET = 0x1000
+    const val DISPLAY_AOD = 0x10000
+    const val DISPLAY_MAGICBOX = 0x100000
+    const val DISPLAY_V_SUGGESTION = 0x1000000
+
+    // Extra template ids (template 5 = navigation; island.template 6 = custom)
+    const val TEMPLATE_NAVIGATION = 5 // 导航模版
+    const val TEMPLATE_CUSTOM = 6 // 自定义模版（仅 island.template）
+
+    // ── Base infos extras (subInfo 4 多图片 / 5 进度 / 6 加载). subImage/subImageList/clickResp keys above. ──
+    const val BUNDLE_KEY_BASE_SUB_PROGRESS = "notification.superx.baseInfos.subProgress" // subInfo 5 进度值
+    const val BUNDLE_KEY_BASE_SUB_PROGRESS_COLOR = "notification.superx.baseInfos.subProgressColor"
+    const val BUNDLE_KEY_BASE_SUB_PROGRESS_BG_COLOR = "notification.superx.baseInfos.subProgressBgColor"
+    const val BUNDLE_KEY_BASE_PROGRESS_STATE = "notification.superx.baseInfos.progressState" // -1失败 0更新中 1成功
+    const val BUNDLE_KEY_BASE_PROGRESS_CONTENT = "notification.superx.baseInfos.progressContent" // 进度环内文本
+    const val BUNDLE_KEY_BASE_LOADING_COLOR = "notification.superx.baseInfos.loadingColor" // subInfo 6 loading 圆点颜色
+    const val BASE_SUB_INFO_NONE = 0
+    const val BASE_SUB_INFO_TEXT = 1
+    const val BASE_SUB_INFO_CAPSULE = 2
+    const val BASE_SUB_INFO_IMAGE = 3
+    const val BASE_SUB_INFO_IMAGE_LIST = 4
+    const val BASE_SUB_INFO_PROGRESS = 5
+    const val BASE_SUB_INFO_LOADING = 6
+
+    // ── Capsule extras ──
+    const val BUNDLE_KEY_CAPSULE_SHOW_TIME = "notification.superx.capsule.showTime" // 显示秒数，默认一直显示
+    const val BUNDLE_KEY_CAPSULE_CLICK_RESP = "notification.superx.capsule.clickResp" // 默认取 clickResp
+
+    // ── Island extras ──
+    const val BUNDLE_KEY_ISLAND_CLICK = "island.superx.islandClick" // 0出卡[默认] 1跳落地页 2点击反馈
+    const val BUNDLE_KEY_ISLAND_CLICK_RESP = "island.superx.clickResp" // islandClick=1 时落地页
+    const val BUNDLE_KEY_ISLAND_BASE_INFOS = "island.superx.baseInfos" // 大卡基础区，不设置复用核心 baseInfos
+    const val BUNDLE_KEY_ISLAND_CARD_INFOS = "island.superx.infos" // 大卡扩展区，不设置复用核心 infos
+    const val ISLAND_CLICK_SHOW_CARD = 0
+    const val ISLAND_CLICK_LANDING = 1
+    const val ISLAND_CLICK_FEEDBACK = 2
+
+    // ── Priority info extras (2.5) ──
+    const val BUNDLE_KEY_INFO_SUB_REVERSE = "notification.superx.infos.subReverse" // 与辅助信息区调换
+    const val BUNDLE_KEY_VCARD_MAIN_TEXT = "notification.vcard.infos.mainText" // 组件卡片主信息
+    const val BUNDLE_KEY_VCARD_SUB_TEXT = "notification.vcard.infos.subText" // 组件卡片辅信息
+
+    // ── Symmetry extra (2.7) ──
+    const val BUNDLE_KEY_INFO_MID_TOP_MSG = "notification.superx.infos.midTopMsg" // 中间顶部信息
+
+    // ── Navigation template (2.9) ──
+    const val BUNDLE_KEY_INFO_NAV_ICON = "notification.superx.infos.navIcon" // 导航左侧图标
+    const val BUNDLE_KEY_INFO_NAV_MSG = "notification.superx.infos.navMsg" // 导航信息，两行用 # 分隔
+
+    /** Fixed tag required to cancel/end a SuperX atomic notification (see 技术规范 demo 3.3). */
+    const val SUPERX_TAG = "VIVO_SUPERX_TAG"
+
     /** Scenes registered via NotificationManager#setSuperXInfosSceneList (see superx_demo). */
     val SUPERX_SCENES = listOf(
         "NAVIGATION", "MOVIE", "HEALTH_REGISTER", "TAXI", "TAKEOUT",

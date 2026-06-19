@@ -520,7 +520,8 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                             OriginIslandConstants.TEMPLATE_PRIORITY_INFO to stringResource(R.string.template_priority),
                             OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL to stringResource(R.string.template_progress),
                             OriginIslandConstants.TEMPLATE_TEXT_SYMMETRY to stringResource(R.string.template_symmetry),
-                            OriginIslandConstants.TEMPLATE_BASE to stringResource(R.string.template_base)
+                            OriginIslandConstants.TEMPLATE_BASE to stringResource(R.string.template_base),
+                            OriginIslandConstants.TEMPLATE_NAVIGATION to stringResource(R.string.template_navigation)
                         )
                         templateOptions.forEach { (value, label) ->
                             RadioButtonPreference(

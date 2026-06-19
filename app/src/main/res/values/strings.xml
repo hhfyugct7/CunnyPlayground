@@ -114,6 +114,7 @@
     <string name="template_progress">2: Progress Visual</string>
     <string name="template_symmetry">3: Text Symmetry</string>
     <string name="template_base">4: Base</string>
+    <string name="template_navigation">5: Navigation</string>
     <string name="section_origin_right_template">Right Island Template</string>
     <string name="ritmpl_wave">1: Wave</string>
     <string name="ritmpl_progress">2: Progress</string>

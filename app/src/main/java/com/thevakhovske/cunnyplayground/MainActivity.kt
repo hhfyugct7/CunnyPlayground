@@ -582,6 +582,11 @@ fun OriginIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehav
                     onClick = { template = OriginIslandConstants.TEMPLATE_BASE },
                     title = stringResource(R.string.template_base)
                 )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_NAVIGATION,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_NAVIGATION },
+                    title = stringResource(R.string.template_navigation)
+                )
             }
         }
 
