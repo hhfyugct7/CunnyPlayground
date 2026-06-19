@@ -143,10 +143,19 @@ fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val isMiui = remember { isMiuiRegion() }
-    val labels = if (isMiui) {
+    val isOrigin = remember { isOriginOs() }
+    // OriginOS takes precedence for the middle "island" tab on this branch.
+    val showOrigin = isOrigin
+    val showHyper = isMiui && !isOrigin
+    val hasMiddle = showOrigin || showHyper
+
+    val middleTabLabel = if (showOrigin) stringResource(R.string.tab_originisland) else stringResource(R.string.tab_hyperisland)
+    val middleTitle = if (showOrigin) stringResource(R.string.title_originisland) else stringResource(R.string.title_hyperisland)
+
+    val labels = if (hasMiddle) {
         listOf(
             stringResource(R.string.tab_playground),
-            stringResource(R.string.tab_hyperisland),
+            middleTabLabel,
             stringResource(R.string.tab_recaster)
         )
     } else {
@@ -161,10 +170,10 @@ fun MainScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = if (isMiui) {
+                title = if (hasMiddle) {
                      when (selectedTab) {
                          0 -> stringResource(R.string.title_playground)
-                         1 -> stringResource(R.string.title_hyperisland)
+                         1 -> middleTitle
                          else -> stringResource(R.string.title_recaster)
                      }
                 } else {
@@ -174,7 +183,7 @@ fun MainScreen() {
                      }
                 },
                 actions = {
-                    if (isMiui && selectedTab == 1) {
+                    if (showHyper && selectedTab == 1) {
                         val context = LocalContext.current
                         IconButton(onClick = { context.startActivity(Intent(context, ExamplesActivity::class.java)) }) {
                             Icon(imageVector = MiuixIcons.Settings, contentDescription = stringResource(R.string.settings))
@@ -187,7 +196,7 @@ fun MainScreen() {
         bottomBar = {
             NavigationBar {
                 labels.forEachIndexed { index, label ->
-                    val navIcon = if (isMiui) {
+                    val navIcon = if (hasMiddle) {
                         when (index) {
                             0 -> MiuixIcons.Notes
                             1 -> MiuixIcons.NotesFill
@@ -209,10 +218,10 @@ fun MainScreen() {
             }
         }
     ) { paddingValues ->
-        if (isMiui) {
+        if (hasMiddle) {
             when (selectedTab) {
                 0 -> PlaygroundScreen(paddingValues, scrollBehavior)
-                1 -> HyperIslandScreen(paddingValues, scrollBehavior)
+                1 -> if (showOrigin) OriginIslandScreen(paddingValues, scrollBehavior) else HyperIslandScreen(paddingValues, scrollBehavior)
                 2 -> RecasterScreen(paddingValues, scrollBehavior)
             }
         } else {
@@ -497,6 +506,210 @@ fun HyperIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavi
 }
 
 @Composable
+fun OriginIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior) {
+    val context = LocalContext.current
+    var title by remember { mutableStateOf(context.getString(R.string.mode_originisland)) }
+    var content by remember { mutableStateOf("") }
+    var leftContent by remember { mutableStateOf("") }
+    var rightContent by remember { mutableStateOf("") }
+    var extra1 by remember { mutableStateOf("") }
+    var extra2 by remember { mutableStateOf("") }
+    var extra3 by remember { mutableStateOf("") }
+    var extra4 by remember { mutableStateOf("") }
+    var template by remember { mutableIntStateOf(OriginIslandConstants.TEMPLATE_PRIORITY_INFO) }
+    var rightTemplate by remember { mutableIntStateOf(OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT) }
+    var progress by remember { mutableStateOf("50") }
+    var scene by remember { mutableStateOf("NAVIGATION") }
+    var bgColor by remember { mutableStateOf("#FFFFFF") }
+    var fgColor by remember { mutableStateOf("#000000") }
+    var selectedIcon by remember { mutableIntStateOf(2) }
+
+    LazyColumn(
+        contentPadding = paddingValues,
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .scrollEndHaptic()
+    ) {
+        item {
+            SmallTitle(stringResource(R.string.section_origin_payload))
+            TextField(
+                value = title,
+                onValueChange = { title = it },
+                label = stringResource(R.string.label_title),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = content,
+                onValueChange = { content = it },
+                label = stringResource(R.string.label_text),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = leftContent,
+                onValueChange = { leftContent = it },
+                label = stringResource(R.string.label_left_content),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = rightContent,
+                onValueChange = { rightContent = it },
+                label = stringResource(R.string.label_right_content),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
+        item {
+            SmallTitle(stringResource(R.string.section_origin_template))
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_PRIORITY_INFO,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_PRIORITY_INFO },
+                    title = stringResource(R.string.template_priority)
+                )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL },
+                    title = stringResource(R.string.template_progress)
+                )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_TEXT_SYMMETRY,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_TEXT_SYMMETRY },
+                    title = stringResource(R.string.template_symmetry)
+                )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_BASE,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_BASE },
+                    title = stringResource(R.string.template_base)
+                )
+            }
+        }
+
+        item {
+            SmallTitle(stringResource(R.string.section_origin_right_template))
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                val rightOptions = listOf(
+                    OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_WAVE to stringResource(R.string.ritmpl_wave),
+                    OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS to stringResource(R.string.ritmpl_progress),
+                    OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_LOADING to stringResource(R.string.ritmpl_loading),
+                    OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON to stringResource(R.string.ritmpl_text_icon),
+                    OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_ICON_TEXT to stringResource(R.string.ritmpl_icon_text),
+                    OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT to stringResource(R.string.ritmpl_capsule)
+                )
+                rightOptions.forEach { (value, label) ->
+                    RadioButtonPreference(
+                        selected = rightTemplate == value,
+                        onClick = { rightTemplate = value },
+                        title = label
+                    )
+                }
+            }
+        }
+
+        item {
+            SmallTitle(stringResource(R.string.section_origin_extras))
+            TextField(
+                value = extra1,
+                onValueChange = { extra1 = it },
+                label = stringResource(R.string.label_extra1),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = extra2,
+                onValueChange = { extra2 = it },
+                label = stringResource(R.string.label_extra2),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = extra3,
+                onValueChange = { extra3 = it },
+                label = stringResource(R.string.label_extra3),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = extra4,
+                onValueChange = { extra4 = it },
+                label = stringResource(R.string.label_extra4),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = progress,
+                onValueChange = { progress = it },
+                label = stringResource(R.string.label_progress),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = scene,
+                onValueChange = { scene = it },
+                label = stringResource(R.string.label_scene),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = bgColor,
+                onValueChange = { bgColor = it },
+                label = stringResource(R.string.label_bg_color),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = fgColor,
+                onValueChange = { fgColor = it },
+                label = stringResource(R.string.label_fg_color),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
+        item {
+            SmallTitle(stringResource(R.string.section_icon))
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                RadioButtonPreference(
+                    selected = selectedIcon == 0,
+                    onClick = { selectedIcon = 0 },
+                    title = stringResource(R.string.icon_timer)
+                )
+                RadioButtonPreference(
+                    selected = selectedIcon == 1,
+                    onClick = { selectedIcon = 1 },
+                    title = stringResource(R.string.icon_call)
+                )
+                RadioButtonPreference(
+                    selected = selectedIcon == 2,
+                    onClick = { selectedIcon = 2 },
+                    title = stringResource(R.string.icon_alert)
+                )
+                RadioButtonPreference(
+                    selected = selectedIcon == 3,
+                    onClick = { selectedIcon = 3 },
+                    title = stringResource(R.string.icon_default)
+                )
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        postOriginIslandNotification(
+                            context, title, content, leftContent, rightContent,
+                            extra1, extra2, extra3, extra4,
+                            template, rightTemplate, progress.toIntOrNull() ?: 50,
+                            scene, bgColor, fgColor, getIconRes(selectedIcon)
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.btn_post_origin)) }
+                Button(
+                    onClick = { stopService(context) },
+                    modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.btn_clear_all)) }
+            }
+        }
+    }
+}
+
+@Composable
 fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
@@ -607,6 +820,17 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                             prefs.edit().putString("cast_mode", "hyperisland").apply()
                         },
                         title = stringResource(R.string.mode_hyperisland)
+                    )
+                }
+                if (isOriginOs()) {
+                    RadioButtonPreference(
+                        selected = castMode == "originisland",
+                        onClick = {
+                            castMode = "originisland"
+                            prefs.edit().putString("cast_mode", "originisland").apply()
+                        },
+                        title = stringResource(R.string.mode_originisland),
+                        summary = stringResource(R.string.pref_cast_notifs_origin_summary)
                     )
                 }
             }
@@ -759,6 +983,45 @@ fun postHyperNotification(
     }
 }
 
+fun postOriginIslandNotification(
+    context: Context, title: String, content: String, leftContent: String, rightContent: String,
+    extra1: String, extra2: String, extra3: String, extra4: String,
+    template: Int, rightTemplate: Int, progress: Int, scene: String,
+    bgColor: String, fgColor: String, iconRes: Int
+) {
+    val intent = Intent(context, PlaygroundService::class.java).apply {
+        action = PlaygroundService.ACTION_START
+        putExtra("title", title)
+        putExtra("text", content)
+        putExtra("subtext", "")
+        putExtra("id", (System.currentTimeMillis() % 100000).toInt())
+        putExtra("icon_res", iconRes)
+        putExtra("source_app", "Manual-Origin-Compose")
+        putExtra("cast_mode", "originisland")
+        putExtra("oi_template", template)
+        putExtra("oi_right_template", rightTemplate)
+        putExtra("oi_left_content", leftContent)
+        putExtra("oi_right_content", rightContent)
+        putExtra("oi_extra1", extra1)
+        putExtra("oi_extra2", extra2)
+        putExtra("oi_extra3", extra3)
+        putExtra("oi_extra4", extra4)
+        putExtra("oi_progress", progress)
+        putExtra("oi_scene", scene)
+        putExtra("oi_bg_color", bgColor)
+        putExtra("oi_fg_color", fgColor)
+        putExtra("show_progress", template == OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL ||
+            rightTemplate == OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS)
+        putExtra("progress", progress)
+        putExtra("progress_max", 100)
+    }
+    if (Build.VERSION.SDK_INT >= 26) {
+        context.startForegroundService(intent)
+    } else {
+        context.startService(intent)
+    }
+}
+
 fun stopService(context: Context) {
     if (Build.VERSION.SDK_INT >= 26) {
         context.startForegroundService(Intent(context, PlaygroundService::class.java).apply { action = PlaygroundService.ACTION_STOP })
@@ -786,5 +1049,16 @@ fun isMiuiCN(): Boolean {
         value == "CN"
     } catch (_: Exception) {
         false
+    }
+}
+
+fun isOriginOs(): Boolean {
+    return try {
+        val buildClass = Class.forName("android.os.SystemProperties")
+        val method = buildClass.getMethod("get", String::class.java)
+        val osName = (method.invoke(buildClass, "ro.vivo.os.name") as? String).orEmpty()
+        osName.isNotEmpty() || Build.MANUFACTURER.equals("vivo", ignoreCase = true)
+    } catch (_: Exception) {
+        Build.MANUFACTURER.equals("vivo", ignoreCase = true)
     }
 }

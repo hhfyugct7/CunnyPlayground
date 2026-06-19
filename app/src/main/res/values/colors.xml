@@ -7,4 +7,12 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- OriginOS / vivo SuperX (原子岛) colors, ported from superx_demo -->
+    <color name="order_status_waiting">#FFA500</color>
+    <color name="order_status_picked_up">#32CD32</color>
+    <color name="order_status_arrived">#008000</color>
+    <color name="vivo_super_x_progress_bar_default_color">#FF3083F0</color>
+    <color name="vivo_super_x_progress_bar_bkg_default_color">#26000000</color>
+    <color name="capsule_color">#FF0000</color>
 </resources>

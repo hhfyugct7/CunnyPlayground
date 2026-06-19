@@ -3,11 +3,13 @@ package com.thevakhovske.cunnyplayground
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Color
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.IBinder
 import android.widget.Toast
@@ -28,6 +30,7 @@ class PlaygroundService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val CHANNEL_ID = "live_updates_channel"
         const val HYPER_CHANNEL_ID = "hyperslop_channel"
+        const val ORIGIN_CHANNEL_ID = "originisland_channel"
         const val NOTIFICATION_ID = 1001
     }
 
@@ -51,6 +54,8 @@ class PlaygroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        // OriginOS requires the SuperX scene whitelist to be registered before any island shows.
+        OriginIslandBuilder.grantScenes(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -127,6 +132,14 @@ class PlaygroundService : Service() {
         val segmentsCount = intent.getIntExtra("progress_segments", 0)
 
         activeIds.add(notificationId)
+
+        // OriginOS / vivo SuperX path: build the atomic notification + OriginIsland exactly like
+        // superx_demo, on a clean builder, then bail out of the generic Live-Updates/HyperIsland flow.
+        if (castMode == "originisland") {
+            postOriginIsland(intent, notificationId, title, text, subtext, sourceApp, statusChipText, iconObj, iconRes)
+            return
+        }
+
         createNotificationChannel(targetChannel)
 
         val builder = NotificationCompat.Builder(this, targetChannel)
@@ -544,11 +557,116 @@ class PlaygroundService : Service() {
         notificationManager.notify(notificationId, notification)
     }
 
+    /**
+     * Posts a vivo OriginOS SuperX atomic notification + OriginIsland, replicating
+     * superx_demo's `SuperXTemplateDemo.sendVivoSuperXNotification`. Island parameters are taken
+     * from explicit `oi_*` intent extras (OriginIsland playground) or derived from the captured
+     * notification (re-caster).
+     */
+    private fun postOriginIsland(
+        intent: Intent,
+        notificationId: Int,
+        title: String,
+        text: String,
+        subtext: String?,
+        sourceApp: String?,
+        statusChipText: String?,
+        iconObj: Icon?,
+        iconRes: Int
+    ) {
+        try {
+            // Ensure scenes are granted (idempotent) and the channel exists.
+            OriginIslandBuilder.grantScenes(this)
+            createNotificationChannel(ORIGIN_CHANNEL_ID)
+
+            // Resolve artwork: prefer the captured/notification icon, fall back to launcher res.
+            val islandIcon: Icon = iconObj ?: Icon.createWithResource(this, iconRes)
+
+            // Progress (0..100) for the progress island / progress-visual template.
+            val progress = intent.getIntExtra("progress", 0)
+            val progressMax = intent.getIntExtra("progress_max", 0)
+            val showProgress = intent.getBooleanExtra("show_progress", false)
+            val derivedProgress = if (progressMax > 0) (progress * 100 / progressMax).coerceIn(0, 100) else 50
+
+            // Island parameters: explicit (OriginIsland playground) or derived (re-caster).
+            val template = intent.getIntExtra("oi_template", OriginIslandConstants.TEMPLATE_PRIORITY_INFO)
+            val rightTemplate = intent.getIntExtra("oi_right_template", -1).let {
+                when {
+                    it != -1 -> it
+                    showProgress && progressMax > 0 -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
+                    else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT
+                }
+            }
+            val leftContent = intent.getStringExtra("oi_left_content")
+                ?: sourceApp?.takeIf { it.isNotBlank() } ?: title
+            val rightContent = intent.getStringExtra("oi_right_content")
+                ?: statusChipText?.takeIf { it.isNotBlank() } ?: text
+            val extra1 = intent.getStringExtra("oi_extra1") ?: title
+            val extra2 = intent.getStringExtra("oi_extra2") ?: text
+            val extra3 = intent.getStringExtra("oi_extra3") ?: ""
+            val extra4 = intent.getStringExtra("oi_extra4") ?: ""
+            val scene = intent.getStringExtra("oi_scene") ?: "NAVIGATION"
+            val oiProgress = intent.getIntExtra("oi_progress", derivedProgress)
+            val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), Color.WHITE)
+            val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), Color.BLACK)
+
+            // Landing page: launch our own app on capsule/island tap.
+            val launch = packageManager.getLaunchIntentForPackage(packageName)
+                ?: Intent(this, MainActivity::class.java)
+            val clickResp = PendingIntent.getActivity(
+                this, 0, launch,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
+            val bundle = OriginIslandBuilder.buildBundle(
+                context = this,
+                template = template,
+                title = title,
+                content = text,
+                leftContent = leftContent,
+                rightContent = rightContent,
+                extra1 = extra1, extra2 = extra2, extra3 = extra3, extra4 = extra4,
+                rightTemplate = rightTemplate,
+                defaultIcon = islandIcon,
+                leftIcon = islandIcon,
+                rightIcon = islandIcon,
+                accentIcon = islandIcon,
+                progress = oiProgress,
+                bgColor = bgColor,
+                fgColor = fgColor,
+                scene = scene,
+                clickResp = clickResp
+            )
+
+            // Build exactly like superx_demo: fresh builder, attach the SuperX data as extras.
+            val nb = NotificationCompat.Builder(this, ORIGIN_CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setExtras(bundle)
+            if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                nb.setSmallIcon(IconCompat.createFromIcon(this, iconObj))
+            } else {
+                nb.setSmallIcon(iconRes)
+            }
+            if (!sourceApp.isNullOrEmpty()) nb.setSubText(sourceApp)
+
+            notificationManager.notify(notificationId, nb.build())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun createNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (manager.getNotificationChannel(channelId) == null) {
-                val channelName = if (channelId == HYPER_CHANNEL_ID) "HyperIsland" else "Live Updates"
+                val channelName = when (channelId) {
+                    HYPER_CHANNEL_ID -> "HyperIsland"
+                    ORIGIN_CHANNEL_ID -> "OriginIsland"
+                    else -> "Live Updates"
+                }
                 val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
                 channel.description = "Channel for $channelName Service"
                 channel.setSound(null, null) 

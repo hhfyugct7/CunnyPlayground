@@ -7,5 +7,7 @@ class CunnyPlaygroundApp : Application() {
     override fun onCreate() {
         super.onCreate()
         DynamicColors.applyToActivitiesIfAvailable(this)
+        // Register the vivo SuperX scene whitelist early so OriginIsland notifications render.
+        OriginIslandBuilder.grantScenes(this)
     }
 }

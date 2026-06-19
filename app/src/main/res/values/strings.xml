@@ -102,6 +102,37 @@
     <string name="channel_name">Live Updates</string>
     <string name="channel_desc">Channel for Live Updates Playground</string>
 
+    <!-- OriginOS / vivo SuperX (OriginIsland) -->
+    <string name="tab_originisland">OriginIsland</string>
+    <string name="title_originisland">OriginIsland Playground</string>
+    <string name="mode_originisland">OriginIsland</string>
+    <string name="section_origin_payload">OriginIsland Payload</string>
+    <string name="label_left_content">Left Island Content</string>
+    <string name="label_right_content">Right Island Content</string>
+    <string name="section_origin_template">Notification Template</string>
+    <string name="template_priority">1: Priority Info</string>
+    <string name="template_progress">2: Progress Visual</string>
+    <string name="template_symmetry">3: Text Symmetry</string>
+    <string name="template_base">4: Base</string>
+    <string name="section_origin_right_template">Right Island Template</string>
+    <string name="ritmpl_wave">1: Wave</string>
+    <string name="ritmpl_progress">2: Progress</string>
+    <string name="ritmpl_loading">3: Loading</string>
+    <string name="ritmpl_text_icon">4: Text + Icon</string>
+    <string name="ritmpl_icon_text">5: Icon + Text</string>
+    <string name="ritmpl_capsule">6: Capsule</string>
+    <string name="section_origin_extras">Template Extras</string>
+    <string name="label_progress">Progress (0-100)</string>
+    <string name="label_scene">Scene</string>
+    <string name="label_bg_color">Background Color (#RRGGBB)</string>
+    <string name="label_fg_color">Foreground Color (#RRGGBB)</string>
+    <string name="label_extra1">Extra 1</string>
+    <string name="label_extra2">Extra 2</string>
+    <string name="label_extra3">Extra 3</string>
+    <string name="label_extra4">Extra 4</string>
+    <string name="btn_post_origin">Post OriginIsland</string>
+    <string name="pref_cast_notifs_origin_summary">Re-cast intercepted notifications as OriginIsland atomic notifications</string>
+
     <string-array name="hype_source_options">
         <item>Title</item>
         <item>Text</item>

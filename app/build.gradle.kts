@@ -10,7 +10,9 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.thevakhovske.cunnyplayground"
+        // orange branch: OriginOS support. Spoof the AutoNavi/Amap package so OriginOS
+        // whitelists this app for vivo SuperX (原子通知 / OriginIsland) scenes.
+        applicationId = "com.autonavi.minimap"
         minSdk = 36
         targetSdk = 37
         versionCode = 1
