@@ -132,6 +132,14 @@
     <string name="label_extra4">Extra 4</string>
     <string name="btn_post_origin">Post OriginIsland</string>
     <string name="pref_cast_notifs_origin_summary">Re-cast intercepted notifications as OriginIsland atomic notifications</string>
+    <!-- OriginIsland per-app mapping -->
+    <string name="section_origin_mapping">OriginIsland Mapping</string>
+    <string name="section_left_island_source">Left Island Source</string>
+    <string name="section_right_island_source">Right Island Source</string>
+    <string name="label_left_island_regex">Left Island Regex</string>
+    <string name="label_right_island_regex">Right Island Regex</string>
+    <string name="template_auto">Auto (by content)</string>
+    <string name="ritmpl_auto">Auto (by content)</string>
 
     <string-array name="hype_source_options">
         <item>Title</item>

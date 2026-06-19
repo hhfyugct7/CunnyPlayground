@@ -94,6 +94,14 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     var hypLeftRegex by remember { mutableStateOf(prefs.getString("${packageName}_hyper_left_regex", "") ?: "") }
     var hypMainRegex by remember { mutableStateOf(prefs.getString("${packageName}_hyper_main_regex", "") ?: "") }
 
+    // OriginIsland per-app mapping (0 = Auto for the template selectors)
+    var oriLeftSource by remember { mutableStateOf(prefs.getString("${packageName}_origin_left_source", "title") ?: "title") }
+    var oriRightSource by remember { mutableStateOf(prefs.getString("${packageName}_origin_right_source", "text") ?: "text") }
+    var oriLeftRegex by remember { mutableStateOf(prefs.getString("${packageName}_origin_left_regex", "") ?: "") }
+    var oriRightRegex by remember { mutableStateOf(prefs.getString("${packageName}_origin_right_regex", "") ?: "") }
+    var oriTemplate by remember { mutableIntStateOf(prefs.getInt("${packageName}_origin_template", 0)) }
+    var oriRightTemplate by remember { mutableIntStateOf(prefs.getInt("${packageName}_origin_right_template", 0)) }
+
     var luTextSource by remember { mutableStateOf(prefs.getString("${packageName}_text_source", "text") ?: "text") }
     var luRegex by remember { mutableStateOf(prefs.getString("${packageName}_regex_filter", "") ?: "") }
 
@@ -158,6 +166,9 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
     val previewStatusTextRaw = applyRegex(getRawText(luTextSource), luRegex)
     val previewStatusText = if (limit7Char && previewStatusTextRaw.length > 7) previewStatusTextRaw.take(7) else previewStatusTextRaw
 
+    val previewOriLeft = applyRegex(getRawText(oriLeftSource), oriLeftRegex)
+    val previewOriRight = applyRegex(getRawText(oriRightSource), oriRightRegex)
+
     fun saveSettings() {
         prefs.edit().apply {
             putString("${packageName}_icon_source", iconSource)
@@ -166,6 +177,13 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                 putString("${packageName}_hyper_main_source", hypMainSource)
                 putString("${packageName}_hyper_left_regex", hypLeftRegex)
                 putString("${packageName}_hyper_main_regex", hypMainRegex)
+            } else if (castMode == "originisland") {
+                putString("${packageName}_origin_left_source", oriLeftSource)
+                putString("${packageName}_origin_right_source", oriRightSource)
+                putString("${packageName}_origin_left_regex", oriLeftRegex)
+                putString("${packageName}_origin_right_regex", oriRightRegex)
+                putInt("${packageName}_origin_template", oriTemplate)
+                putInt("${packageName}_origin_right_template", oriRightTemplate)
             } else {
                 putString("${packageName}_text_source", luTextSource)
                 putString("${packageName}_regex_filter", luRegex)
@@ -285,6 +303,61 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                                 )
                                 Spacer(Modifier.width(4.dp))
                             }
+                        } else if (castMode == "originisland") {
+                            // OriginIsland Pill (left island + right capsule)
+                            Row(
+                                modifier = Modifier
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                    .background(androidx.compose.ui.graphics.Color.Black)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                previewIconBitmap?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(20))
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = previewOriLeft,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    maxLines = 1,
+                                    fontSize = 14.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 90.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                // Camera Cutout Placeholder
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(androidx.compose.ui.graphics.Color.White)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                // Right island rendered as a capsule
+                                Box(
+                                    modifier = Modifier
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                                        .background(androidx.compose.ui.graphics.Color.White)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = previewOriRight,
+                                        color = androidx.compose.ui.graphics.Color.Black,
+                                        maxLines = 1,
+                                        fontSize = 13.sp,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 110.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(4.dp))
+                            }
                         } else {
                             // Live Updates Pill
                             Row(
@@ -388,6 +461,96 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
                             label = stringResource(R.string.label_main_regex),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                         )
+                    }
+                }
+            } else if (castMode == "originisland") {
+                item {
+                    SmallTitle(stringResource(R.string.section_origin_mapping))
+
+                    val sources = listOf("title", "text", "subtext", "titletext")
+                    val sourceLabels = listOf(
+                        stringResource(R.string.label_title),
+                        stringResource(R.string.label_text),
+                        stringResource(R.string.label_subtext),
+                        "${stringResource(R.string.label_title)}+${stringResource(R.string.label_text)}"
+                    )
+
+                    SmallTitle(stringResource(R.string.section_left_island_source))
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        sources.forEachIndexed { index, source ->
+                            RadioButtonPreference(
+                                selected = oriLeftSource == source,
+                                onClick = { oriLeftSource = source },
+                                title = sourceLabels[index]
+                            )
+                        }
+                        TextField(
+                            value = oriLeftRegex,
+                            onValueChange = { oriLeftRegex = it },
+                            label = stringResource(R.string.label_left_island_regex),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SmallTitle(stringResource(R.string.section_right_island_source))
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        sources.forEachIndexed { index, source ->
+                            RadioButtonPreference(
+                                selected = oriRightSource == source,
+                                onClick = { oriRightSource = source },
+                                title = sourceLabels[index]
+                            )
+                        }
+                        TextField(
+                            value = oriRightRegex,
+                            onValueChange = { oriRightRegex = it },
+                            label = stringResource(R.string.label_right_island_regex),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SmallTitle(stringResource(R.string.section_origin_template))
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        val templateOptions = listOf(
+                            0 to stringResource(R.string.template_auto),
+                            OriginIslandConstants.TEMPLATE_PRIORITY_INFO to stringResource(R.string.template_priority),
+                            OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL to stringResource(R.string.template_progress),
+                            OriginIslandConstants.TEMPLATE_TEXT_SYMMETRY to stringResource(R.string.template_symmetry),
+                            OriginIslandConstants.TEMPLATE_BASE to stringResource(R.string.template_base)
+                        )
+                        templateOptions.forEach { (value, label) ->
+                            RadioButtonPreference(
+                                selected = oriTemplate == value,
+                                onClick = { oriTemplate = value },
+                                title = label
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SmallTitle(stringResource(R.string.section_origin_right_template))
+                    Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                        val rightOptions = listOf(
+                            0 to stringResource(R.string.ritmpl_auto),
+                            OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_WAVE to stringResource(R.string.ritmpl_wave),
+                            OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS to stringResource(R.string.ritmpl_progress),
+                            OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_LOADING to stringResource(R.string.ritmpl_loading),
+                            OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON to stringResource(R.string.ritmpl_text_icon),
+                            OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_ICON_TEXT to stringResource(R.string.ritmpl_icon_text),
+                            OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT to stringResource(R.string.ritmpl_capsule)
+                        )
+                        rightOptions.forEach { (value, label) ->
+                            RadioButtonPreference(
+                                selected = oriRightTemplate == value,
+                                onClick = { oriRightTemplate = value },
+                                title = label
+                            )
+                        }
                     }
                 }
             } else {

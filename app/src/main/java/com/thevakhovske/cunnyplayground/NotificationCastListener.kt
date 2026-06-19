@@ -204,6 +204,10 @@ class NotificationCastListener : NotificationListenerService() {
         var finalChipText = ""
         var hyperLeftText = ""
         var hyperMainText = ""
+        var originLeftText = ""
+        var originRightText = ""
+        var originTemplate = 0
+        var originRightTemplate = 0
 
         if (castMode == "hyperisland") {
             val leftSource = prefs.getString("${sbn.packageName}_hyper_left_source", "title")
@@ -213,6 +217,18 @@ class NotificationCastListener : NotificationListenerService() {
             val mainSource = prefs.getString("${sbn.packageName}_hyper_main_source", "text")
             val mainRegex = prefs.getString("${sbn.packageName}_hyper_main_regex", "")
             hyperMainText = applyRegex(resolveText(mainSource), mainRegex)
+        } else if (castMode == "originisland") {
+            val leftSource = prefs.getString("${sbn.packageName}_origin_left_source", "title")
+            val leftRegex = prefs.getString("${sbn.packageName}_origin_left_regex", "")
+            originLeftText = applyRegex(resolveText(leftSource), leftRegex)
+
+            val rightSource = prefs.getString("${sbn.packageName}_origin_right_source", "text")
+            val rightRegex = prefs.getString("${sbn.packageName}_origin_right_regex", "")
+            originRightText = applyRegex(resolveText(rightSource), rightRegex)
+
+            // 0 = Auto: PlaygroundService picks the template by content (e.g. progress when present)
+            originTemplate = prefs.getInt("${sbn.packageName}_origin_template", 0)
+            originRightTemplate = prefs.getInt("${sbn.packageName}_origin_right_template", 0)
         } else {
             val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
             val regexStr = prefs.getString("${sbn.packageName}_regex_filter", "")
@@ -303,7 +319,7 @@ class NotificationCastListener : NotificationListenerService() {
         val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
 
         // Deduping: Generate a key based on content that effects the UI
-        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|P:$progress/$progressMax/$isIndeterminate"
+        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|OL:$originLeftText|OR:$originRightText|OT:$originTemplate/$originRightTemplate|P:$progress/$progressMax/$isIndeterminate"
         
         if (castMode == "hyperisland") {
             //Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
@@ -342,7 +358,15 @@ class NotificationCastListener : NotificationListenerService() {
                 putExtra("hyper_left_text", hyperLeftText)
                 putExtra("hyper_main_text", hyperMainText)
             }
-            
+
+            if (castMode == "originisland") {
+                if (originLeftText.isNotBlank()) putExtra("oi_left_content", originLeftText)
+                if (originRightText.isNotBlank()) putExtra("oi_right_content", originRightText)
+                // 0 (or out-of-range) is treated as Auto by PlaygroundService
+                putExtra("oi_template", originTemplate)
+                putExtra("oi_right_template", originRightTemplate)
+            }
+
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {

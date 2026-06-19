@@ -11,7 +11,9 @@ import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.widget.Toast
 import android.graphics.Bitmap
 import android.widget.RemoteViews
@@ -35,6 +37,9 @@ class PlaygroundService : Service() {
     }
 
     private val activeIds = mutableSetOf<Int>()
+    // notificationId -> SuperX scene, for OriginIsland notifications that need an explicit "end".
+    private val originScenes = HashMap<Int, String>()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var isForegroundActive = false
     private lateinit var notificationManager: NotificationManager
 
@@ -89,10 +94,19 @@ class PlaygroundService : Service() {
             ACTION_START -> startPromotedNotification(intent)
             ACTION_CANCEL -> cancelNotification(intent)
             ACTION_STOP -> {
-                activeIds.forEach { notificationManager.cancel(it) }
+                // End any active OriginIsland atomic notifications so their islands don't linger.
+                val hadOrigins = originScenes.isNotEmpty()
+                HashMap(originScenes).forEach { (id, scene) -> endOrigin(id, scene) }
+                originScenes.clear()
+                val toCancel = activeIds.toList()
                 activeIds.clear()
-                stopForeground(true)
-                stopSelf()
+                val tearDown = {
+                    toCancel.forEach { notificationManager.cancel(it) }
+                    stopForeground(true)
+                    stopSelf()
+                }
+                // Let the SuperX engine process the end(s) before pulling the host notifications.
+                if (hadOrigins) mainHandler.postDelayed(tearDown, 350) else tearDown()
             }
         }
         return START_NOT_STICKY
@@ -100,9 +114,35 @@ class PlaygroundService : Service() {
 
     private fun cancelNotification(intent: Intent) {
         val id = intent.getIntExtra("id", -1)
-        if (id != -1) {
+        if (id == -1) return
+        // If this id was an OriginIsland notification, tell OriginOS to end the atomic notification
+        // first (a plain cancel leaves the island/capsule on screen). The scene comes from our map
+        // or, for swipe-to-dismiss delete intents, from the intent itself.
+        val scene = originScenes.remove(id) ?: intent.getStringExtra("oi_scene")
+        if (scene != null) {
+            endOrigin(id, scene)
+            // Remove the host shortly after, giving the SuperX engine time to process the end.
+            mainHandler.postDelayed({ notificationManager.cancel(id) }, 350)
+        } else {
             notificationManager.cancel(id)
-            activeIds.remove(id)
+        }
+        activeIds.remove(id)
+    }
+
+    /** Posts an operation=2 SuperX bundle on [id] so OriginOS dismisses the atomic notification/island. */
+    private fun endOrigin(id: Int, scene: String) {
+        try {
+            OriginIslandBuilder.grantScenes(this)
+            createNotificationChannel(ORIGIN_CHANNEL_ID)
+            val endNb = NotificationCompat.Builder(this, ORIGIN_CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle("")
+                .setContentText("")
+                .setSilent(true)
+                .setExtras(OriginIslandBuilder.buildEndBundle(scene))
+            notificationManager.notify(id, endNb.build())
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -588,14 +628,20 @@ class PlaygroundService : Service() {
             val showProgress = intent.getBooleanExtra("show_progress", false)
             val derivedProgress = if (progressMax > 0) (progress * 100 / progressMax).coerceIn(0, 100) else 50
 
-            // Island parameters: explicit (OriginIsland playground) or derived (re-caster).
-            val template = intent.getIntExtra("oi_template", OriginIslandConstants.TEMPLATE_PRIORITY_INFO)
-            val rightTemplate = intent.getIntExtra("oi_right_template", -1).let {
-                when {
-                    it != -1 -> it
-                    showProgress && progressMax > 0 -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
-                    else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT
-                }
+            // Island parameters: explicit (OriginIsland playground / per-app config) or Auto.
+            // "Auto" (0 or out-of-range) picks the template by content — progress template when
+            // the source notification carries progress, mirroring the HyperIsland conditional path.
+            val templateExtra = intent.getIntExtra("oi_template", 0)
+            val template = when {
+                templateExtra in 1..4 -> templateExtra
+                showProgress && progressMax > 0 -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
+                else -> OriginIslandConstants.TEMPLATE_PRIORITY_INFO
+            }
+            val rightTemplateExtra = intent.getIntExtra("oi_right_template", 0)
+            val rightTemplate = when {
+                rightTemplateExtra in 1..6 -> rightTemplateExtra
+                showProgress && progressMax > 0 -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
+                else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT
             }
             val leftContent = intent.getStringExtra("oi_left_content")
                 ?: sourceApp?.takeIf { it.isNotBlank() } ?: title
@@ -638,12 +684,25 @@ class PlaygroundService : Service() {
                 clickResp = clickResp
             )
 
-            // Build exactly like superx_demo: fresh builder, attach the SuperX data as extras.
+            // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
+            // the island lingering). Routed back through ACTION_CANCEL with the scene attached.
+            val deleteIntent = Intent(this, PlaygroundService::class.java).apply {
+                action = ACTION_CANCEL
+                putExtra("id", notificationId)
+                putExtra("oi_scene", scene)
+            }
+            val deletePi = PendingIntent.getService(
+                this, notificationId, deleteIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
+            // Build like superx_demo (NOT ongoing, so it stays user-dismissable), attach SuperX data.
             val nb = NotificationCompat.Builder(this, ORIGIN_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setOngoing(true)
                 .setOnlyAlertOnce(true)
+                .setOngoing(false)
+                .setDeleteIntent(deletePi)
                 .setExtras(bundle)
             if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
                 nb.setSmallIcon(IconCompat.createFromIcon(this, iconObj))
@@ -652,6 +711,7 @@ class PlaygroundService : Service() {
             }
             if (!sourceApp.isNullOrEmpty()) nb.setSubText(sourceApp)
 
+            originScenes[notificationId] = scene
             notificationManager.notify(notificationId, nb.build())
         } catch (e: Exception) {
             e.printStackTrace()

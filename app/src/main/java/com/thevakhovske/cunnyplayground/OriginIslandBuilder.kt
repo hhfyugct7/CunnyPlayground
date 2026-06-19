@@ -127,6 +127,22 @@ object OriginIslandBuilder {
     }
 
     /**
+     * Builds an "end" bundle (operation = 2 结束原子通知) that tells OriginOS to dismiss a previously
+     * posted SuperX atomic notification / OriginIsland. Post this with the SAME notification id the
+     * island was created with, then cancel the host notification. Without this, cancelling the host
+     * leaves the island/capsule lingering.
+     */
+    fun buildEndBundle(scene: String): Bundle {
+        val bundle = Bundle()
+        bundle.putInt(BUNDLE_KEY_OPERATION, 2) // 2 = 结束原子通知 (end)
+        bundle.putBoolean(BUNDLE_KEY_SHOW_NOTIFY, false)
+        bundle.putString(BUNDLE_KEY_SCENE, scene)
+        // High change record so the end is never dropped as an out-of-order update.
+        bundle.putInt(BUNDLE_KEY_CHANGE_RECORD, Int.MAX_VALUE)
+        return bundle
+    }
+
+    /**
      * Builds the full SuperX extras bundle.
      *
      * Mirrors `SuperXTemplateDemo.buildImportantInfoTemplate`. Icons are passed in (rather than
