@@ -30,6 +30,7 @@ class PlaygroundService : Service() {
         const val ACTION_START = "ACTION_START"
         const val ACTION_CANCEL = "ACTION_CANCEL"
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_REPLICATE = "ACTION_REPLICATE"
         const val CHANNEL_ID = "live_updates_channel"
         const val HYPER_CHANNEL_ID = "hyperslop_channel"
         const val ORIGIN_CHANNEL_ID = "originisland_channel"
@@ -93,6 +94,7 @@ class PlaygroundService : Service() {
         when (intent?.action) {
             ACTION_START -> startPromotedNotification(intent)
             ACTION_CANCEL -> cancelNotification(intent)
+            ACTION_REPLICATE -> replicateOrigin(intent)
             ACTION_STOP -> {
                 // End any active OriginIsland atomic notifications so their islands don't linger.
                 val hadOrigins = originScenes.isNotEmpty()
@@ -149,6 +151,59 @@ class PlaygroundService : Service() {
                 .setSilent(true)
                 .setExtras(OriginIslandBuilder.buildEndBundle(scene))
             notificationManager.notify(OriginIslandConstants.SUPERX_TAG, id, endNb.build())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Inspector "Replicate": rebuilds a captured SuperX bundle (scene forced to NAVIGATION) and
+     * re-posts it under our own package, so a notification sniffed from another app can be re-emitted
+     * within the whitelisted NAVIGATION scene. Captured cross-app PendingIntents can't be reused, so
+     * the card/capsule click falls back to launching our app.
+     */
+    private fun replicateOrigin(intent: Intent) {
+        try {
+            val recordId = intent.getStringExtra("record_id") ?: return
+            val bundle = SuperXInspectorStore.rebuildBundle(this, recordId) ?: return
+            OriginIslandBuilder.grantScenes(this)
+            createNotificationChannel(ORIGIN_CHANNEL_ID)
+
+            val notifId = 30000 + (recordId.hashCode() and 0x7FFF)
+            activeIds.add(notifId)
+            originScenes[notifId] = "NAVIGATION"
+
+            val launch = packageManager.getLaunchIntentForPackage(packageName)
+                ?: Intent(this, MainActivity::class.java)
+            val launchPi = PendingIntent.getActivity(
+                this, notifId, launch,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            bundle.putParcelable("notification.superx.clickResp", launchPi)
+
+            val title = intent.getStringExtra("title")?.takeIf { it.isNotBlank() } ?: "SuperX Replica"
+            val text = intent.getStringExtra("text") ?: ""
+
+            val deleteIntent = Intent(this, PlaygroundService::class.java).apply {
+                action = ACTION_CANCEL
+                putExtra("id", notifId)
+                putExtra("oi_scene", "NAVIGATION")
+            }
+            val deletePi = PendingIntent.getService(
+                this, notifId, deleteIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
+            val nb = NotificationCompat.Builder(this, ORIGIN_CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setOnlyAlertOnce(true)
+                .setOngoing(false)
+                .setAutoCancel(false)
+                .setDeleteIntent(deletePi)
+                .setExtras(bundle)
+            notificationManager.notify(OriginIslandConstants.SUPERX_TAG, notifId, nb.build())
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -688,8 +743,8 @@ class PlaygroundService : Service() {
             val scene = intent.getStringExtra("oi_scene") ?: "NAVIGATION"
             val navMsg = intent.getStringExtra("oi_nav_msg")
             val oiProgress = intent.getIntExtra("oi_progress", derivedProgress)
-            val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), Color.WHITE)
-            val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), Color.BLACK)
+            val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), 0xFF363636.toInt())
+            val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), 0xFF41DC8E.toInt())
             val keepDuration = intent.getIntExtra("oi_keep_duration", 0)
             val forceShow = intent.getBooleanExtra("oi_force_show", false)
             val dismissWhenKill = intent.getBooleanExtra("oi_dismiss_when_kill", true)

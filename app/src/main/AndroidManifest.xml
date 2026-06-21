@@ -51,6 +51,7 @@
         <activity android:name=".AppPickerActivity" />
         <activity android:name=".AppConfigActivity" />
         <activity android:name=".ExamplesActivity" />
+        <activity android:name=".InspectorDetailActivity" />
 
         <receiver
             android:name=".HyperCommandReceiver"

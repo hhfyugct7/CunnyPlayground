@@ -49,7 +49,21 @@ class NotificationCastListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        captureExistingSuperX()
         reloadNotifications()
+    }
+
+    /** Inspector: snapshot any SuperX atomic notifications already present when we connect. */
+    private fun captureExistingSuperX() {
+        try {
+            activeNotifications?.forEach { sbn ->
+                if (sbn.packageName != packageName && SuperXInspectorStore.isSuperX(sbn.notification.extras)) {
+                    SuperXInspectorStore.capture(this, sbn)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("NotificationCast", "captureExistingSuperX failed", e)
+        }
     }
 
     private fun reloadNotifications() {
@@ -76,6 +90,11 @@ class NotificationCastListener : NotificationListenerService() {
 
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        // Inspector: capture any SuperX atomic notification (from other apps) regardless of cast state.
+        if (sbn.packageName != packageName && SuperXInspectorStore.isSuperX(sbn.notification.extras)) {
+            SuperXInspectorStore.capture(this, sbn)
+        }
+
         val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
         val isCastingEnabled = prefs.getBoolean("cast_notifications", false)
 

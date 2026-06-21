@@ -115,6 +115,30 @@
     <string name="template_symmetry">3: Text Symmetry</string>
     <string name="template_base">4: Base</string>
     <string name="template_navigation">5: Navigation</string>
+
+    <!-- Inspector -->
+    <string name="tab_inspector">Inspector</string>
+    <string name="title_inspector">SuperX Inspector</string>
+    <string name="section_inspector_about">About</string>
+    <string name="inspector_desc_title">SuperX Sniffer</string>
+    <string name="inspector_desc_summary">Captures every OriginOS atomic notification (原子通知) seen on this device. Requires notification access.</string>
+    <string name="section_captured">Captured (%d)</string>
+    <string name="inspector_empty">No SuperX notifications captured yet.\n\nGrant notification access above; OriginOS atomic notifications posted by other apps will appear here automatically.</string>
+    <string name="section_si_meta">Metadata</string>
+    <string name="section_si_images">Images &amp; Items</string>
+    <string name="section_si_fields">Editable Fields</string>
+    <string name="btn_replicate">Replicate (NAVIGATION scene)</string>
+    <string name="btn_pin">Pin to cache</string>
+    <string name="btn_unpin">Unpin</string>
+    <string name="btn_delete">Delete</string>
+    <string name="msg_replicated">Replicated with NAVIGATION scene</string>
+    <string name="msg_saved">Saved</string>
+    <string name="inspector_access_status">Notification access</string>
+    <string name="inspector_access_on">Granted — capturing SuperX notifications</string>
+    <string name="inspector_access_off">NOT granted — tap below to enable</string>
+    <string name="action_rescan">Rescan active notifications</string>
+    <string name="action_rescan_summary">Reconnect the listener and snapshot SuperX notifications already on screen</string>
+    <string name="msg_rescan">Rescanning…</string>
     <string name="section_origin_right_template">Right Island Template</string>
     <string name="ritmpl_wave">1: Wave</string>
     <string name="ritmpl_progress">2: Progress</string>

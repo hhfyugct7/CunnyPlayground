@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -141,28 +142,37 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
 
     val isMiui = remember { isMiuiRegion() }
     val isOrigin = remember { isOriginOs() }
     // OriginOS takes precedence for the middle "island" tab on this branch.
     val showOrigin = isOrigin
     val showHyper = isMiui && !isOrigin
-    val hasMiddle = showOrigin || showHyper
 
-    val middleTabLabel = if (showOrigin) stringResource(R.string.tab_originisland) else stringResource(R.string.tab_hyperisland)
-    val middleTitle = if (showOrigin) stringResource(R.string.title_originisland) else stringResource(R.string.title_hyperisland)
+    // Tab set: Playground, [island], Re-Caster, Inspector
+    val tabIds = buildList {
+        add("playground")
+        if (showOrigin) add("originisland") else if (showHyper) add("hyperisland")
+        add("recaster")
+        add("inspector")
+    }
+    if (selectedTab >= tabIds.size) selectedTab = 0
+    val current = tabIds[selectedTab]
 
-    val labels = if (hasMiddle) {
-        listOf(
-            stringResource(R.string.tab_playground),
-            middleTabLabel,
-            stringResource(R.string.tab_recaster)
-        )
-    } else {
-        listOf(
-            stringResource(R.string.tab_playground),
-            stringResource(R.string.tab_recaster)
-        )
+    fun titleFor(id: String) = when (id) {
+        "playground" -> R.string.title_playground
+        "originisland" -> R.string.title_originisland
+        "hyperisland" -> R.string.title_hyperisland
+        "recaster" -> R.string.title_recaster
+        else -> R.string.title_inspector
+    }
+    fun labelFor(id: String) = when (id) {
+        "playground" -> R.string.tab_playground
+        "originisland" -> R.string.tab_originisland
+        "hyperisland" -> R.string.tab_hyperisland
+        "recaster" -> R.string.tab_recaster
+        else -> R.string.tab_inspector
     }
 
     val scrollBehavior = MiuixScrollBehavior()
@@ -170,21 +180,9 @@ fun MainScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = if (hasMiddle) {
-                     when (selectedTab) {
-                         0 -> stringResource(R.string.title_playground)
-                         1 -> middleTitle
-                         else -> stringResource(R.string.title_recaster)
-                     }
-                } else {
-                     when (selectedTab) {
-                         0 -> stringResource(R.string.title_playground)
-                         else -> stringResource(R.string.title_recaster)
-                     }
-                },
+                title = stringResource(titleFor(current)),
                 actions = {
-                    if (showHyper && selectedTab == 1) {
-                        val context = LocalContext.current
+                    if (current == "hyperisland") {
                         IconButton(onClick = { context.startActivity(Intent(context, ExamplesActivity::class.java)) }) {
                             Icon(imageVector = MiuixIcons.Settings, contentDescription = stringResource(R.string.settings))
                         }
@@ -195,39 +193,149 @@ fun MainScreen() {
         },
         bottomBar = {
             NavigationBar {
-                labels.forEachIndexed { index, label ->
-                    val navIcon = if (hasMiddle) {
-                        when (index) {
-                            0 -> MiuixIcons.Notes
-                            1 -> MiuixIcons.NotesFill
-                            else -> MiuixIcons.Send
-                        }
-                    } else {
-                        when (index) {
-                            0 -> MiuixIcons.Notes
-                            else -> MiuixIcons.Send
-                        }
+                tabIds.forEachIndexed { index, id ->
+                    val navIcon = when (id) {
+                        "playground" -> MiuixIcons.Notes
+                        "originisland", "hyperisland" -> MiuixIcons.NotesFill
+                        "recaster" -> MiuixIcons.Send
+                        else -> MiuixIcons.SelectAll
                     }
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         icon = navIcon,
-                        label = label
+                        label = stringResource(labelFor(id))
                     )
                 }
             }
         }
     ) { paddingValues ->
-        if (hasMiddle) {
-            when (selectedTab) {
-                0 -> PlaygroundScreen(paddingValues, scrollBehavior)
-                1 -> if (showOrigin) OriginIslandScreen(paddingValues, scrollBehavior) else HyperIslandScreen(paddingValues, scrollBehavior)
-                2 -> RecasterScreen(paddingValues, scrollBehavior)
+        when (current) {
+            "playground" -> PlaygroundScreen(paddingValues, scrollBehavior)
+            "originisland" -> OriginIslandScreen(paddingValues, scrollBehavior)
+            "hyperisland" -> HyperIslandScreen(paddingValues, scrollBehavior)
+            "recaster" -> RecasterScreen(paddingValues, scrollBehavior)
+            "inspector" -> InspectorScreen(paddingValues, scrollBehavior)
+        }
+    }
+}
+
+@Composable
+fun InspectorScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior) {
+    val context = LocalContext.current
+    val records = remember { mutableStateListOf<SuperXRecordMeta>() }
+    var accessGranted by remember { mutableStateOf(false) }
+
+    fun reload() {
+        records.clear()
+        records.addAll(SuperXInspectorStore.list(context))
+        accessGranted = androidx.core.app.NotificationManagerCompat
+            .getEnabledListenerPackages(context).contains(context.packageName)
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) reload()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // Live refresh whenever the listener captures a new SuperX notification.
+    DisposableEffect(Unit) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context?, i: Intent?) { reload() }
+        }
+        val filter = android.content.IntentFilter(SuperXInspectorStore.ACTION_UPDATED)
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose { try { context.unregisterReceiver(receiver) } catch (_: Exception) {} }
+    }
+    LaunchedEffect(Unit) { reload() }
+
+    LazyColumn(
+        contentPadding = paddingValues,
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .scrollEndHaptic()
+    ) {
+        item {
+            SmallTitle(stringResource(R.string.section_inspector_about))
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                BasicComponent(
+                    title = stringResource(R.string.inspector_desc_title),
+                    summary = stringResource(R.string.inspector_desc_summary)
+                )
+                BasicComponent(
+                    title = stringResource(R.string.inspector_access_status),
+                    summary = if (accessGranted) stringResource(R.string.inspector_access_on)
+                              else stringResource(R.string.inspector_access_off)
+                )
+                ArrowPreference(
+                    title = stringResource(R.string.action_grant_access),
+                    summary = stringResource(R.string.action_grant_access_summary),
+                    onClick = { context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) }
+                )
+                ArrowPreference(
+                    title = stringResource(R.string.action_rescan),
+                    summary = stringResource(R.string.action_rescan_summary),
+                    onClick = {
+                        try {
+                            android.service.notification.NotificationListenerService.requestRebind(
+                                android.content.ComponentName(context, NotificationCastListener::class.java)
+                            )
+                        } catch (_: Exception) {}
+                        reload()
+                        Toast.makeText(context, context.getString(R.string.msg_rescan), Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        if (records.isEmpty()) {
+            item {
+                Card(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.inspector_empty),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         } else {
-            when (selectedTab) {
-                0 -> PlaygroundScreen(paddingValues, scrollBehavior)
-                1 -> RecasterScreen(paddingValues, scrollBehavior)
+            item { SmallTitle(stringResource(R.string.section_captured, records.size)) }
+            items(records.toList()) { rec ->
+                Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {
+                    val bmp = remember(rec.iconPath) {
+                        rec.iconPath?.let {
+                            try { android.graphics.BitmapFactory.decodeFile(it) } catch (_: Exception) { null }
+                        }
+                    }
+                    BasicComponent(
+                        title = rec.title.ifBlank { rec.appLabel },
+                        summary = "${rec.appLabel} • ${rec.scene.ifBlank { "—" }} • tpl ${rec.template}${if (rec.pinned) "  ★" else ""}",
+                        startAction = {
+                            if (bmp != null) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                        },
+                        onClick = {
+                            context.startActivity(
+                                Intent(context, InspectorDetailActivity::class.java).apply {
+                                    putExtra("record_id", rec.id)
+                                }
+                            )
+                        }
+                    )
+                }
             }
         }
     }

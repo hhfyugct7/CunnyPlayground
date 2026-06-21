@@ -145,6 +145,12 @@ object OriginIslandBuilder {
     /** A notification action mapped onto OriginIsland clickable surfaces (capsule/island/card/images). */
     data class OriginAction(val title: String, val icon: Icon?, val pendingIntent: PendingIntent?)
 
+    /** A fully transparent 2x2 icon, used to hide the required nodeIcons on a plain progress bar. */
+    private fun transparentIcon(): Icon {
+        val bmp = android.graphics.Bitmap.createBitmap(2, 2, android.graphics.Bitmap.Config.ARGB_8888)
+        return Icon.createWithBitmap(bmp)
+    }
+
     private fun colorSpan(text: String, color: Int): CharSequence {
         val s = SpannableString(text)
         if (text.isNotEmpty()) {
@@ -233,7 +239,8 @@ object OriginIslandBuilder {
         islandShowTime: Int = 0,
         capsuleShowTime: Int = 0,
         forceShow: Boolean = false,
-        progressState: Int = 1
+        progressState: Int = 1,
+        progressMarkers: Boolean = false
     ): Bundle {
         val bundle = Bundle()
         bundle.putInt(BUNDLE_KEY_OPERATION, operation)
@@ -262,6 +269,11 @@ object OriginIslandBuilder {
         baseBundle.putCharSequence(BUNDLE_KEY_BASE_TITLE, title)
         baseBundle.putCharSequence(BUNDLE_KEY_BASE_CONTENT, content)
         when {
+            // Progress-visual card: keep the aux area empty so no stray/truncated text appears
+            // next to the progress bar (subInfo 0 = 不展示).
+            template == OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL -> {
+                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_NONE)
+            }
             // Base template + actions → up to 3 tappable action images (subInfo 4)
             template == OriginIslandConstants.TEMPLATE_BASE && clickableActions.isNotEmpty() -> {
                 val imgs = ArrayList<Icon>()
@@ -302,17 +314,29 @@ object OriginIslandBuilder {
                 primaryClick?.let { infoBundle.putParcelable(BUNDLE_KEY_INFO_IMAGE_CLICK_RESP, it) }
             }
             OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL -> {
+                // nodeIcon is required (2~5). For a clean linear bar (no markers) we pass two fully
+                // transparent nodes and omit indicatorIcon entirely (it only shows when set).
                 val iconList = ArrayList<Icon>()
-                iconList.add(defaultIcon)
-                iconList.add(defaultIcon)
-                iconList.add(defaultIcon)
+                if (progressMarkers) {
+                    iconList.add(accentIcon)
+                    iconList.add(defaultIcon)
+                    iconList.add(accentIcon)
+                    infoBundle.putParcelable(BUNDLE_KEY_INFO_INDICATOR_ICON, accentIcon)
+                    infoBundle.putInt(BUNDLE_KEY_INFO_INDICATOR_LOC, 2)
+                } else {
+                    val t = transparentIcon()
+                    iconList.add(t)
+                    iconList.add(t)
+                }
                 infoBundle.putParcelableArrayList(BUNDLE_KEY_INFO_NODE_ICON, iconList)
                 infoBundle.putInt(BUNDLE_KEY_INFO_PROGRESS, progress.coerceIn(0, 100))
-                infoBundle.putParcelable(BUNDLE_KEY_INFO_INDICATOR_ICON, accentIcon)
-                infoBundle.putInt(BUNDLE_KEY_INFO_INDICATOR_LOC, 2)
                 infoBundle.putInt(
                     BUNDLE_KEY_INFO_PROGRESS_COLOR,
                     context.resources.getColor(R.color.vivo_super_x_progress_bar_default_color, null)
+                )
+                infoBundle.putInt(
+                    OriginIslandConstants.BUNDLE_KEY_INFO_BG_COLOR,
+                    context.resources.getColor(R.color.vivo_super_x_progress_bar_bkg_default_color, null)
                 )
             }
             OriginIslandConstants.TEMPLATE_TEXT_SYMMETRY -> {
