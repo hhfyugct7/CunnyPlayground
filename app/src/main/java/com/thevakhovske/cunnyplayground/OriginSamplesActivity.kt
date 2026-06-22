@@ -77,20 +77,20 @@ private fun samples(): List<OriginSample> = listOf(
     },
     OriginSample("Food delivery", "TAKEOUT · base card + capsule") { c ->
         send(c, "Order on the way", "Arriving in about 8 min", "Sushi Place", "8 min",
-            C.TEMPLATE_BASE, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "TAKEOUT", icon = R.drawable.ic_alert)
+            C.TEMPLATE_BASE, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "NAVIGATION", icon = R.drawable.ic_alert)
     },
     OriginSample("Ride hailing", "TAXI · driver arriving") { c ->
         send(c, "Driver arriving", "Black Tesla · plate 7Z·123", "Uber", "2 min",
-            C.TEMPLATE_BASE, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "TAXI", icon = R.drawable.ic_call)
+            C.TEMPLATE_BASE, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "NAVIGATION", icon = R.drawable.ic_call)
     },
     OriginSample("Flight boarding", "FLIGHT · left/right symmetry") { c ->
         send(c, "Boarding", "Gate A12 · Seat 14C", "", "",
-            C.TEMPLATE_TEXT_SYMMETRY, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "FLIGHT",
+            C.TEMPLATE_TEXT_SYMMETRY, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "NAVIGATION",
             extra1 = "PEK", extra2 = "09:30", extra3 = "SVO", extra4 = "14:20")
     },
     OriginSample("Train", "TRAIN · symmetry + capsule") { c ->
         send(c, "On time", "Car 7 · Seat 12F", "", "",
-            C.TEMPLATE_TEXT_SYMMETRY, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "TRAIN",
+            C.TEMPLATE_TEXT_SYMMETRY, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "NAVIGATION",
             extra1 = "Beijing", extra2 = "G123", extra3 = "Shanghai", extra4 = "18:40")
     },
     OriginSample("Navigation", "Nav template · 2-line message") { c ->
@@ -109,7 +109,7 @@ private fun samples(): List<OriginSample> = listOf(
     },
     OriginSample("Incoming call", "VOIPCALL · Decline / Answer buttons") { c ->
         send(c, "Incoming call", "+1 555 0199", "Phone", "",
-            C.TEMPLATE_BUTTONS, C.TEMPLATE_RIGHT_ISLAND_LOADING, "VOIPCALL",
+            C.TEMPLATE_BUTTONS, C.TEMPLATE_RIGHT_ISLAND_LOADING, "NAVIGATION",
             icon = R.drawable.ic_call, adv = OriginAdvanced(buttonTitles = "Decline,Answer"))
     },
     OriginSample("Two buttons", "Buttons template · Deny / Receive (vivoshare)") { c ->
@@ -119,7 +119,7 @@ private fun samples(): List<OriginSample> = listOf(
     },
     OriginSample("Countdown timer", "TIMER · progress 40%") { c ->
         send(c, "Timer", "04:32 remaining", "Timer", "04:32",
-            C.TEMPLATE_PROGRESS_VISUAL, C.TEMPLATE_RIGHT_ISLAND_PROGRESS, "TIMER",
+            C.TEMPLATE_PROGRESS_VISUAL, C.TEMPLATE_RIGHT_ISLAND_PROGRESS, "NAVIGATION",
             progress = 40, icon = R.drawable.ic_timer)
     },
     OriginSample("Loading", "Loading-dots island") { c ->
@@ -133,7 +133,7 @@ private fun samples(): List<OriginSample> = listOf(
     },
     OriginSample("SOS / light effect", "CRITICAL · red AOD edge light") { c ->
         send(c, "Emergency SOS", "Sending your location…", "SOS", "",
-            C.TEMPLATE_PRIORITY_INFO, C.TEMPLATE_RIGHT_ISLAND_LOADING, "CRITICAL",
+            C.TEMPLATE_PRIORITY_INFO, C.TEMPLATE_RIGHT_ISLAND_LOADING, "NAVIGATION",
             extra1 = "Emergency", extra2 = "SOS activated", icon = R.drawable.ic_alert,
             adv = OriginAdvanced(lightColor = "#FF3B30", keepScreenOn = true))
     }
