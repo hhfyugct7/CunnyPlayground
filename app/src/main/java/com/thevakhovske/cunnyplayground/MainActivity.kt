@@ -187,6 +187,11 @@ fun MainScreen() {
                             Icon(imageVector = MiuixIcons.Settings, contentDescription = stringResource(R.string.settings))
                         }
                     }
+                    if (current == "originisland") {
+                        IconButton(onClick = { context.startActivity(Intent(context, OriginSamplesActivity::class.java)) }) {
+                            Icon(imageVector = MiuixIcons.SelectAll, contentDescription = stringResource(R.string.title_origin_samples))
+                        }
+                    }
                 },
                 scrollBehavior = scrollBehavior
             )
@@ -631,6 +636,18 @@ fun OriginIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehav
     var bgColor by remember { mutableStateOf("#FFFFFF") }
     var fgColor by remember { mutableStateOf("#000000") }
     var selectedIcon by remember { mutableIntStateOf(2) }
+    // Advanced / decompiled knobs
+    var advSubText by remember { mutableStateOf("") }
+    var advNavMsg by remember { mutableStateOf("") }
+    var advButtonTitles by remember { mutableStateOf("") }
+    var advCardBg by remember { mutableStateOf("") }
+    var advLightColor by remember { mutableStateOf("") }
+    var advLeftDouble by remember { mutableStateOf("") }
+    var advRightDouble by remember { mutableStateOf("") }
+    var advKeepScreenOn by remember { mutableStateOf(false) }
+    var advForceShow by remember { mutableStateOf(false) }
+    var advIconStatus by remember { mutableIntStateOf(-1) }
+    var advKeepDuration by remember { mutableStateOf("") }
 
     LazyColumn(
         contentPadding = paddingValues,
@@ -694,6 +711,106 @@ fun OriginIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehav
                     selected = template == OriginIslandConstants.TEMPLATE_NAVIGATION,
                     onClick = { template = OriginIslandConstants.TEMPLATE_NAVIGATION },
                     title = stringResource(R.string.template_navigation)
+                )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_BUTTONS,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_BUTTONS },
+                    title = stringResource(R.string.template_buttons)
+                )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_DRIVING_NAVI,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_DRIVING_NAVI },
+                    title = stringResource(R.string.template_driving_navi)
+                )
+                RadioButtonPreference(
+                    selected = template == OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM,
+                    onClick = { template = OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM },
+                    title = stringResource(R.string.template_custom)
+                )
+            }
+        }
+
+        // Advanced (decompiled) custom controls
+        item {
+            SmallTitle(stringResource(R.string.section_origin_advanced))
+            TextField(
+                value = advButtonTitles,
+                onValueChange = { advButtonTitles = it },
+                label = stringResource(R.string.label_button_titles),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advSubText,
+                onValueChange = { advSubText = it },
+                label = stringResource(R.string.label_subtext),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advNavMsg,
+                onValueChange = { advNavMsg = it },
+                label = stringResource(R.string.label_nav_msg),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advLeftDouble,
+                onValueChange = { advLeftDouble = it },
+                label = stringResource(R.string.label_left_doubleline),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advRightDouble,
+                onValueChange = { advRightDouble = it },
+                label = stringResource(R.string.label_right_doubleline),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advCardBg,
+                onValueChange = { advCardBg = it },
+                label = stringResource(R.string.label_card_bg_color),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advLightColor,
+                onValueChange = { advLightColor = it },
+                label = stringResource(R.string.label_light_color),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            TextField(
+                value = advKeepDuration,
+                onValueChange = { advKeepDuration = it },
+                label = stringResource(R.string.label_keep_duration),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                CheckboxPreference(
+                    checked = advKeepScreenOn,
+                    onCheckedChange = { advKeepScreenOn = it },
+                    title = stringResource(R.string.label_keep_screen_on)
+                )
+                CheckboxPreference(
+                    checked = advForceShow,
+                    onCheckedChange = { advForceShow = it },
+                    title = stringResource(R.string.label_force_show)
+                )
+                RadioButtonPreference(
+                    selected = advIconStatus == -1,
+                    onClick = { advIconStatus = -1 },
+                    title = stringResource(R.string.status_none)
+                )
+                RadioButtonPreference(
+                    selected = advIconStatus == OriginIslandConstants.ICON_STATUS_SUCCESS,
+                    onClick = { advIconStatus = OriginIslandConstants.ICON_STATUS_SUCCESS },
+                    title = stringResource(R.string.status_success)
+                )
+                RadioButtonPreference(
+                    selected = advIconStatus == OriginIslandConstants.ICON_STATUS_FAIL,
+                    onClick = { advIconStatus = OriginIslandConstants.ICON_STATUS_FAIL },
+                    title = stringResource(R.string.status_fail)
+                )
+                RadioButtonPreference(
+                    selected = advIconStatus == OriginIslandConstants.ICON_STATUS_ERROR,
+                    onClick = { advIconStatus = OriginIslandConstants.ICON_STATUS_ERROR },
+                    title = stringResource(R.string.status_error)
                 )
             }
         }
@@ -808,7 +925,20 @@ fun OriginIslandScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehav
                             context, title, content, leftContent, rightContent,
                             extra1, extra2, extra3, extra4,
                             template, rightTemplate, progress.toIntOrNull() ?: 50,
-                            scene, bgColor, fgColor, getIconRes(selectedIcon)
+                            scene, bgColor, fgColor, getIconRes(selectedIcon),
+                            OriginAdvanced(
+                                subText = advSubText,
+                                navMsg = advNavMsg,
+                                cardBgColor = advCardBg,
+                                lightColor = advLightColor,
+                                keepScreenOn = advKeepScreenOn,
+                                forceShow = advForceShow,
+                                keepDuration = advKeepDuration.toIntOrNull() ?: 0,
+                                iconStatusType = advIconStatus,
+                                leftDoubleLine = advLeftDouble,
+                                rightDoubleLine = advRightDouble,
+                                buttonTitles = advButtonTitles
+                            )
                         )
                     },
                     modifier = Modifier.weight(1f)
@@ -1096,17 +1226,41 @@ fun postHyperNotification(
     }
 }
 
+/** Advanced (decompiled) OriginIsland knobs exposed in the playground. Blank strings = unset. */
+data class OriginAdvanced(
+    val subText: String = "",
+    val navMsg: String = "",
+    val cardBgColor: String = "",
+    val lightColor: String = "",
+    val lightMode: Int = 0,
+    val keepScreenOn: Boolean = false,
+    val disableInvert: Boolean = false,
+    val forceShow: Boolean = false,
+    val dismissWhenKill: Boolean = true,
+    val keepDuration: Int = 0,
+    val islandShowTime: Int = 0,
+    val displays: Int = 0,
+    val generatingStatus: Int = 0,
+    val iconStatusType: Int = -1,
+    val leftDoubleLine: String = "",
+    val rightDoubleLine: String = "",
+    val buttonTitles: String = ""
+)
+
+private fun splitCsv(s: String): ArrayList<String> =
+    ArrayList(s.split(",").map { it.trim() }.filter { it.isNotEmpty() })
+
 fun postOriginIslandNotification(
     context: Context, title: String, content: String, leftContent: String, rightContent: String,
     extra1: String, extra2: String, extra3: String, extra4: String,
     template: Int, rightTemplate: Int, progress: Int, scene: String,
-    bgColor: String, fgColor: String, iconRes: Int
+    bgColor: String, fgColor: String, iconRes: Int, adv: OriginAdvanced = OriginAdvanced()
 ) {
     val intent = Intent(context, PlaygroundService::class.java).apply {
         action = PlaygroundService.ACTION_START
         putExtra("title", title)
         putExtra("text", content)
-        putExtra("subtext", "")
+        putExtra("subtext", adv.subText)
         putExtra("id", (System.currentTimeMillis() % 100000).toInt())
         putExtra("icon_res", iconRes)
         putExtra("source_app", "Manual-Origin-Compose")
@@ -1123,6 +1277,23 @@ fun postOriginIslandNotification(
         putExtra("oi_scene", scene)
         putExtra("oi_bg_color", bgColor)
         putExtra("oi_fg_color", fgColor)
+        // advanced / decompiled knobs
+        if (adv.navMsg.isNotBlank()) putExtra("oi_nav_msg", adv.navMsg)
+        if (adv.cardBgColor.isNotBlank()) putExtra("oi_card_bg_color", adv.cardBgColor)
+        if (adv.lightColor.isNotBlank()) putExtra("oi_light_color", adv.lightColor)
+        putExtra("oi_light_mode", adv.lightMode)
+        putExtra("oi_keep_screen_on", adv.keepScreenOn)
+        putExtra("oi_disable_invert", adv.disableInvert)
+        putExtra("oi_force_show", adv.forceShow)
+        putExtra("oi_dismiss_when_kill", adv.dismissWhenKill)
+        putExtra("oi_keep_duration", adv.keepDuration)
+        putExtra("oi_island_show_time", adv.islandShowTime)
+        putExtra("oi_displays", adv.displays)
+        putExtra("oi_generating_status", adv.generatingStatus)
+        putExtra("oi_icon_status_type", adv.iconStatusType)
+        putStringArrayListExtra("oi_left_doubleline", splitCsv(adv.leftDoubleLine))
+        putStringArrayListExtra("oi_right_doubleline", splitCsv(adv.rightDoubleLine))
+        putStringArrayListExtra("oi_button_titles", splitCsv(adv.buttonTitles))
         putExtra("show_progress", template == OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL ||
             rightTemplate == OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS)
         putExtra("progress", progress)

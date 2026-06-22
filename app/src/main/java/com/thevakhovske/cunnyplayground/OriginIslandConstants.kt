@@ -188,12 +188,100 @@ object OriginIslandConstants {
     const val BUNDLE_KEY_INFO_NAV_ICON = "notification.superx.infos.navIcon" // 导航左侧图标
     const val BUNDLE_KEY_INFO_NAV_MSG = "notification.superx.infos.navMsg" // 导航信息，两行用 # 分隔
 
+    // ── Undocumented, recovered by decompiling OriginOS SystemUI (SuperXTemplateUtils v2) ──
+    // v2 template ids: 1 major / 2 progress / 3 horizontal-pair / 4 normal / 5 navi
+    const val TEMPLATE_NOTIF_CUSTOM = 7    // 自定义模版 (card-level custom; cf. island TEMPLATE_CUSTOM=6)
+    const val TEMPLATE_BUTTONS = 8         // 按钮模版 (multi-button card)
+    const val TEMPLATE_DRIVING_NAVI = 9    // 驾车导航模版
+
+    // Multi-button API (notification.superx.infos.btn*) — ButtonsSuperXTemplate.
+    // btnType 1 = up to 3 filled VButtons in a row; 2 = 2–5 icon+text items.
+    // All five lists must be the same length; btnIconList must be non-empty (entries may be null).
+    const val BUNDLE_KEY_INFO_BTN_TYPE = "notification.superx.infos.btnType"
+    const val BUNDLE_KEY_INFO_BTN_TEXT_LIST = "notification.superx.infos.btnTextList"            // ArrayList<String>
+    const val BUNDLE_KEY_INFO_BTN_ICON_LIST = "notification.superx.infos.btnIconList"            // ArrayList<Icon>
+    const val BUNDLE_KEY_INFO_BTN_TEXT_COLOR_LIST = "notification.superx.infos.btnTextColorList" // ArrayList<Int>
+    const val BUNDLE_KEY_INFO_BTN_COLOR_LIST = "notification.superx.infos.btnColorList"          // ArrayList<Int> (fill, type 1)
+    const val BUNDLE_KEY_INFO_BTN_CLICK_RESP_LIST = "notification.superx.infos.btnClickRespList" // ArrayList<PendingIntent>
+    const val BTN_TYPE_FILLED = 1
+    const val BTN_TYPE_ICON_TEXT = 2
+
+    // Other recovered core/card fields
+    const val BUNDLE_KEY_CARD_BG_COLOR = "notification.superx.cardBgColor"               // int
+    const val BUNDLE_KEY_KEEP_SCREEN_ON = "notification.superx.keepScreenOn"             // boolean
+    const val BUNDLE_KEY_DISABLE_INVERT_COLOR = "notification.superx.disableInvertColor" // boolean
+
+    // Island double-line text (ArrayList<CharSequence>) — text-only island side, no icon needed
+    const val BUNDLE_KEY_ISLAND_LEFT_DOUBLELINE = "island.superx.leftInfo.doublelineText"
+    const val BUNDLE_KEY_ISLAND_RIGHT_DOUBLELINE = "island.superx.rightInfo.doublelineText"
+    const val BUNDLE_KEY_ISLAND_LEFT_GENERATING = "island.superx.leftInfo.generatingStatus"
+    const val BUNDLE_KEY_ISLAND_RIGHT_PLAY_PAG = "island.superx.rightInfo.playPAG"
+    const val BUNDLE_KEY_ISLAND_RIGHT_PROGRESS_CONTENT = "island.superx.rightInfo.progressContent"
+
+    // AOD edge light effect (EffectLightInfo: mode, mainColor, sosWarnAnim)
+    const val BUNDLE_KEY_EFFECT_IS_LIGHT = "notification.superx.lightEffect.isLight"           // boolean
+    const val BUNDLE_KEY_EFFECT_LIGHT_INFO = "notification.superx.lightEffectInfo"             // Bundle
+    const val BUNDLE_KEY_EFFECT_LIGHT_MAIN_COLOR = "notification.superx.lightEffectInfo.mainColor" // int
+    const val BUNDLE_KEY_EFFECT_LIGHT_MODE = "notification.superx.lightEffectInfo.mode"        // int
+    const val BUNDLE_KEY_EFFECT_LIGHT_SOS_WARN = "notification.superx.lightEffectInfo.sosWarn" // int
+    const val BUNDLE_KEY_EFFECT_LIGHT_REPEAT = "notification.superx.lightEffectInfo.sosWarnRepeatCount"
+
+    // baseInfos extras
+    const val BUNDLE_KEY_BASE_CONTENT_ICON = "notification.superx.baseInfos.contentIcon"       // Icon
+    const val BUNDLE_KEY_BASE_GENERATING_STATUS = "notification.superx.baseInfos.generatingStatus" // int
+    const val BUNDLE_KEY_BASE_ICON_STATUS_TYPE = "notification.superx.baseInfos.iconStatusType"    // 0 success/1 fail/2 error
+    const val BUNDLE_KEY_BASE_ICON_ROUND_CORNER = "notification.superx.baseInfos.iconRoundCorner"  // boolean
+    const val ICON_STATUS_SUCCESS = 0
+    const val ICON_STATUS_FAIL = 1
+    const val ICON_STATUS_ERROR = 2
+    val STATUS_MAIN_COLOR = intArrayOf(
+        0xFF32BF55.toInt(), // success rgb(50,191,85)
+        0xFFED4D47.toInt(), // fail    rgb(237,77,71)
+        0xFFFF9D58.toInt()  // error   rgb(255,157,88)
+    )
+
+    // Driving-navi template (9) — infos.*
+    const val BUNDLE_KEY_INFO_DIR_ICON = "notification.superx.infos.dirIcon"               // Icon
+    const val BUNDLE_KEY_INFO_DIR_SUB_TEXT = "notification.superx.infos.dirSubText"         // CharSequence
+    const val BUNDLE_KEY_INFO_DIR_ASSIST_TEXT = "notification.superx.infos.dirAssistText"   // String
+    const val BUNDLE_KEY_INFO_DIR_ASSIST_ICON = "notification.superx.infos.dirAssistIcon"   // Icon
+    const val BUNDLE_KEY_INFO_DIR_ASSIST_TYPE = "notification.superx.infos.dirAssistType"   // int
+    const val BUNDLE_KEY_INFO_DIR_ASSIST_TEXT_COLOR = "notification.superx.infos.dirAssistTextColor"
+    const val BUNDLE_KEY_INFO_DIR_ASSIST_BTN_COLOR = "notification.superx.infos.dirAssistBtnColor"
+    const val BUNDLE_KEY_INFO_LANE_LIST = "notification.superx.infos.laneList"               // ArrayList<Parcelable>
+    const val BUNDLE_KEY_INFO_MAIN_HIGHLIGHT_TEXT = "notification.superx.infos.mainHighlightText"
+    const val BUNDLE_KEY_INFO_MAIN_NORMAL_TEXT = "notification.superx.infos.mainNormalText"
+
+    // Custom template (7)
+    const val BUNDLE_KEY_CUSTOM_TEMPLATE = "notification.superx.customTemplate"             // Parcelable
+    const val BUNDLE_KEY_CUSTOM_TEMPLATE_AOD = "notification.superx.customTemplate.aodAdapter"
+
+    // Island control extras
+    const val BUNDLE_KEY_ISLAND_PRIORITY = "island.superx.priority"
+    const val BUNDLE_KEY_ISLAND_TYPE = "island.superx.islandType"
+    const val BUNDLE_KEY_ISLAND_SHOW_TYPE = "island.superx.islandShowType"
+    const val BUNDLE_KEY_ISLAND_STATE = "island.superx.state"
+    const val BUNDLE_KEY_ISLAND_PERMANENT = "island.superx.permanent"
+    const val BUNDLE_KEY_ISLAND_DISMISS_CARD = "island.superx.dismissCard"
+    const val BUNDLE_KEY_ISLAND_SHOW_BAR_WHEN_CARD = "island.superx.showBarWhenCard"
+    const val BUNDLE_KEY_ISLAND_LANDING_INFO = "island.superx.landingInfo"
+    const val BUNDLE_KEY_ISLAND_LANDING_PKG = "island.superx.landingPkg"
+    const val BUNDLE_KEY_ISLAND_CAPSULE_WIDTH = "island.superx.capsule.width"
+
+    // Capsule extra
+    const val BUNDLE_KEY_CAPSULE_LANDING_AUTO_HIDE = "notification.superx.capsule.landingAutoHide"
+
     /** Fixed tag required to cancel/end a SuperX atomic notification (see 技术规范 demo 3.3). */
     const val SUPERX_TAG = "VIVO_SUPERX_TAG"
 
-    /** Scenes registered via NotificationManager#setSuperXInfosSceneList (see superx_demo). */
+    /**
+     * Scenes registered via NotificationManager#setSuperXInfosSceneList. The first block is from
+     * superx_demo / the public doc; the rest were recovered by decompiling SystemUI (INCALLING,
+     * VOIPCALL, TIMER, RIDE_GUIDE, CRITICAL — needed for call / timer / SOS style notifications).
+     */
     val SUPERX_SCENES = listOf(
         "NAVIGATION", "MOVIE", "HEALTH_REGISTER", "TAXI", "TAKEOUT",
-        "DELIEVERY", "CAR_STATE", "METTING", "TRAIN", "FLIGHT"
+        "DELIEVERY", "CAR_STATE", "METTING", "TRAIN", "FLIGHT",
+        "INCALLING", "VOIPCALL", "TIMER", "RIDE_GUIDE", "CRITICAL"
     )
 }

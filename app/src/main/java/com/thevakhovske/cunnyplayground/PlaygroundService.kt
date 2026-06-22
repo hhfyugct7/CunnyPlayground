@@ -715,10 +715,16 @@ class PlaygroundService : Service() {
                 )
             }
             // Island parameters: explicit (OriginIsland playground / per-app config) or Auto.
-            // Auto: a progress card when the source has progress, otherwise a clean base card.
+            // Auto: real button card when the source has actions (template 8 → multi-button row,
+            // recovered from the decompiled SystemUI); progress card when it has progress; else base.
+            // Buttons + progress coexist: buttons in the card, progress moves to the island ring.
+            // Only the buttons template (8) is used for 2+ actions — but ButtonsSuperXTemplate does NOT
+            // wire a whole-card click, so 0–1 action notifications stay on a tappable template (the lone
+            // action shows as the in-card chip) so tapping the card still opens the source app.
             val templateExtra = intent.getIntExtra("oi_template", 0)
             val template = when {
-                templateExtra in 1..5 -> templateExtra
+                templateExtra in 1..9 -> templateExtra
+                originActions.size >= 2 -> OriginIslandConstants.TEMPLATE_BUTTONS
                 hasProgress -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
                 else -> OriginIslandConstants.TEMPLATE_BASE
             }
@@ -751,6 +757,18 @@ class PlaygroundService : Service() {
             val forceShow = intent.getBooleanExtra("oi_force_show", false)
             val dismissWhenKill = intent.getBooleanExtra("oi_dismiss_when_kill", true)
             val islandShowTime = intent.getIntExtra("oi_island_show_time", 0)
+            val displaysVal = intent.getIntExtra("oi_displays", 0)
+            // Advanced / decompiled extras (playground custom controls)
+            val cardBgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_card_bg_color"), 0)
+            val keepScreenOn = intent.getBooleanExtra("oi_keep_screen_on", false)
+            val disableInvert = intent.getBooleanExtra("oi_disable_invert", false)
+            val lightColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_light_color"), 0)
+            val lightMode = intent.getIntExtra("oi_light_mode", 0)
+            val generatingStatus = intent.getIntExtra("oi_generating_status", 0)
+            val iconStatusType = intent.getIntExtra("oi_icon_status_type", -1)
+            val leftDoubleLine = intent.getStringArrayListExtra("oi_left_doubleline") ?: arrayListOf()
+            val rightDoubleLine = intent.getStringArrayListExtra("oi_right_doubleline") ?: arrayListOf()
+            val buttonTitles = intent.getStringArrayListExtra("oi_button_titles") ?: arrayListOf()
             // 0 = updating (show the ring), 1 = success (shows a checkmark, NOT the ring). An ongoing
             // download must stay "updating" or the right island hides the progress entirely.
             val progressState = if (oiProgress >= 100 && !isIndeterminate) 1 else 0
@@ -766,7 +784,11 @@ class PlaygroundService : Service() {
                 @Suppress("DEPRECATION")
                 intent.getParcelableExtra<PendingIntent>("source_content_intent")
             }
-            val launch = packageManager.getLaunchIntentForPackage(packageName)
+            // Fallback when the source notification has no content intent: open the SOURCE app's
+            // launcher (never our own app), so tapping the card always lands on the right app.
+            val sourcePkg = intent.getStringExtra("source_pkg")
+            val launch = (sourcePkg?.let { packageManager.getLaunchIntentForPackage(it) })
+                ?: packageManager.getLaunchIntentForPackage(packageName)
                 ?: Intent(this, MainActivity::class.java)
             val clickResp = sourceClick ?: PendingIntent.getActivity(
                 this, notificationId, launch,
@@ -799,10 +821,21 @@ class PlaygroundService : Service() {
                 keepDuration = keepDuration,
                 sound = false,
                 dismissWhenKill = dismissWhenKill,
+                displays = displaysVal,
                 islandShowTime = islandShowTime,
                 forceShow = forceShow,
                 progressState = progressState,
-                showRightIcon = showRightIcon
+                showRightIcon = showRightIcon,
+                cardBgColor = cardBgColor,
+                keepScreenOn = keepScreenOn,
+                disableInvertColor = disableInvert,
+                lightColor = lightColor,
+                lightMode = lightMode,
+                generatingStatus = generatingStatus,
+                iconStatusType = iconStatusType,
+                leftDoubleLine = leftDoubleLine,
+                rightDoubleLine = rightDoubleLine,
+                buttonTitles = buttonTitles
             )
 
             // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
@@ -833,16 +866,8 @@ class PlaygroundService : Service() {
             }
             if (!sourceApp.isNullOrEmpty()) nb.setSubText(sourceApp)
 
-            // 2+ actions → real notification action buttons (multiple buttons, like vivoshare's
-            // Deny/Receive). A single action is shown as the in-card chip instead, so we don't
-            // duplicate it. OriginOS styles these buttons itself (primary = accent, others = neutral).
-            if (originActions.size >= 2) {
-                originActions.forEach { a ->
-                    val pi = a.pendingIntent ?: return@forEach
-                    val ic = if (Build.VERSION.SDK_INT >= 23) a.icon?.let { IconCompat.createFromIcon(this, it) } else null
-                    nb.addAction(NotificationCompat.Action.Builder(ic, a.title, pi).build())
-                }
-            }
+            // (Standard Android actions are ignored on SuperX cards — buttons come from template 8's
+            // infos.btn* lists instead, built above.)
 
             originScenes[notificationId] = scene
             // Post with the fixed SuperX tag so OriginOS can later match & dismiss it (§3.3).

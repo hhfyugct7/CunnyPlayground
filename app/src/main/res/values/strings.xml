@@ -115,6 +115,30 @@
     <string name="template_symmetry">3: Text Symmetry</string>
     <string name="template_base">4: Base</string>
     <string name="template_navigation">5: Navigation</string>
+    <string name="template_buttons">8: Buttons (multi-button)</string>
+    <string name="template_driving_navi">9: Driving Navigation</string>
+    <string name="template_custom">7: Custom</string>
+
+    <!-- OriginIsland Samples -->
+    <string name="title_origin_samples">OriginIsland Samples</string>
+    <string name="origin_samples_hint">Tap the send icon to fire a ready-made atomic notification.</string>
+    <string name="msg_sample_sent">Sent: %s</string>
+
+    <!-- OriginIsland advanced / decompiled controls -->
+    <string name="section_origin_advanced">Advanced (decompiled)</string>
+    <string name="label_button_titles">Button labels (comma-separated, for template 8)</string>
+    <string name="label_nav_msg">Nav message (template 5/9; # = 2 lines)</string>
+    <string name="label_left_doubleline">Left island 2-line text (comma-separated)</string>
+    <string name="label_right_doubleline">Right island 2-line text (comma-separated)</string>
+    <string name="label_card_bg_color">Card BG color (#RRGGBB)</string>
+    <string name="label_light_color">AOD light color (#RRGGBB)</string>
+    <string name="label_keep_duration">Keep duration after end (s, max 3600)</string>
+    <string name="label_keep_screen_on">Keep screen on</string>
+    <string name="label_force_show">Force show (fullscreen)</string>
+    <string name="status_none">Icon status: none</string>
+    <string name="status_success">Icon status: success (green)</string>
+    <string name="status_fail">Icon status: fail (red)</string>
+    <string name="status_error">Icon status: error (orange)</string>
 
     <!-- Inspector -->
     <string name="tab_inspector">Inspector</string>

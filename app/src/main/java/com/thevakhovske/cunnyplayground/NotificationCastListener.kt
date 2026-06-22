@@ -357,6 +357,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("text", finalText)
             putExtra("subtext", rawSubText)
             putExtra("source_app", sourceApp)
+            putExtra("source_pkg", sbn.packageName)
             val limit7Char = prefs.getBoolean("limit_chip_7char", false)
             var processedChipText = if (limit7Char && finalChipText.length > 7 && castMode != "hyperisland") {
                 finalChipText.take(7)

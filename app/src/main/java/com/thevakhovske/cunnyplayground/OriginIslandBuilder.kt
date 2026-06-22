@@ -245,7 +245,17 @@ object OriginIslandBuilder {
         forceShow: Boolean = false,
         progressState: Int = 1,
         progressMarkers: Boolean = false,
-        showRightIcon: Boolean = true
+        showRightIcon: Boolean = true,
+        cardBgColor: Int = 0,
+        keepScreenOn: Boolean = false,
+        disableInvertColor: Boolean = false,
+        lightColor: Int = 0,
+        lightMode: Int = 0,
+        generatingStatus: Int = 0,
+        iconStatusType: Int = -1,
+        leftDoubleLine: List<String> = emptyList(),
+        rightDoubleLine: List<String> = emptyList(),
+        buttonTitles: List<String> = emptyList()
     ): Bundle {
         val bundle = Bundle()
         bundle.putInt(BUNDLE_KEY_OPERATION, operation)
@@ -258,6 +268,17 @@ object OriginIslandBuilder {
         if (keepDuration > 0) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_KEEP_DURATION, keepDuration)
         if (displays != 0) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_DISPLAYS, displays)
         if (newNode > 0) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_NEW_NODE, newNode)
+        if (!isDefaultColor(cardBgColor)) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_CARD_BG_COLOR, cardBgColor)
+        if (keepScreenOn) bundle.putBoolean(OriginIslandConstants.BUNDLE_KEY_KEEP_SCREEN_ON, true)
+        if (disableInvertColor) bundle.putBoolean(OriginIslandConstants.BUNDLE_KEY_DISABLE_INVERT_COLOR, true)
+        if (!isDefaultColor(lightColor)) {
+            // AOD edge light effect [RE] — isLight on root + a lightEffectInfo sub-bundle.
+            bundle.putBoolean(OriginIslandConstants.BUNDLE_KEY_EFFECT_IS_LIGHT, true)
+            bundle.putBundle(OriginIslandConstants.BUNDLE_KEY_EFFECT_LIGHT_INFO, Bundle().apply {
+                putInt(OriginIslandConstants.BUNDLE_KEY_EFFECT_LIGHT_MODE, lightMode)
+                putInt(OriginIslandConstants.BUNDLE_KEY_EFFECT_LIGHT_MAIN_COLOR, lightColor)
+            })
+        }
 
         // Tapping the island / card / capsule opens the cast SOURCE app: clickResp = the source
         // notification's content intent (supplied by the caller). The notification's own action is
@@ -275,10 +296,13 @@ object OriginIslandBuilder {
         baseBundle.putCharSequence(BUNDLE_KEY_BASE_TITLE, title)
         baseBundle.putCharSequence(BUNDLE_KEY_BASE_CONTENT, content)
         when {
-            // The primary action → a tappable chip, the only in-card "button" SuperX offers. It sits
-            // in baseInfos (separate from the progress bar in infos), so it shows on the progress card
-            // too. Forced light so it stays readable (the system default renders it dark-on-dark).
-            // NOTE: SuperX has no multi-button row; extra actions can't be shown here (see service).
+            // The buttons template renders its own real button row from infos.btn* — no chip needed.
+            template == OriginIslandConstants.TEMPLATE_BUTTONS -> {
+                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_NONE)
+            }
+            // Otherwise the primary action → a tappable chip (the single in-card button on non-button
+            // templates). It sits in baseInfos (separate from the progress bar), so it shows on the
+            // progress card too. Forced light so it stays readable (system default is dark-on-dark).
             actionClick != null && actionTitle != null -> {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_CAPSULE)
                 baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, actionTitle)
@@ -309,6 +333,8 @@ object OriginIslandBuilder {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_NONE)
             }
         }
+        if (generatingStatus > 0) baseBundle.putInt(OriginIslandConstants.BUNDLE_KEY_BASE_GENERATING_STATUS, generatingStatus)
+        if (iconStatusType >= 0) baseBundle.putInt(OriginIslandConstants.BUNDLE_KEY_BASE_ICON_STATUS_TYPE, iconStatusType)
         bundle.putBundle(BUNDLE_KEY_BASE_INFOS, baseBundle)
 
         // ── Specific Template Infos ──
@@ -362,6 +388,37 @@ object OriginIslandBuilder {
                 val defaultNav = listOf(title, content).filter { it.isNotBlank() }.joinToString(" • ")
                 infoBundle.putString(OriginIslandConstants.BUNDLE_KEY_INFO_NAV_MSG, navMsg ?: defaultNav)
             }
+            OriginIslandConstants.TEMPLATE_BUTTONS -> {
+                // Real multi-button row (undocumented, recovered from ButtonsSuperXTemplate).
+                // btnType 1 = up to 3 filled buttons. All five lists must be the same length and
+                // btnIconList must be non-empty (null entries render as text-only buttons).
+                // Source: the notification's own actions, else explicit playground button titles
+                // (each wired to clickResp so they're tappable).
+                val btnSource: List<Triple<String, Icon?, PendingIntent>> = when {
+                    actions.any { it.pendingIntent != null } ->
+                        actions.filter { it.pendingIntent != null }.map { Triple(it.title, it.icon, it.pendingIntent!!) }
+                    buttonTitles.isNotEmpty() && clickResp != null ->
+                        buttonTitles.map { Triple(it, null as Icon?, clickResp) }
+                    else -> emptyList()
+                }.take(3)
+                if (btnSource.isNotEmpty()) {
+                    val textColor = if (!isDefaultColor(fgColor)) fgColor else Color.parseColor("#FF1A1A1A")
+                    val fillColor = if (!isDefaultColor(bgColor)) bgColor else Color.parseColor("#FFEFEFEF")
+                    infoBundle.putInt(OriginIslandConstants.BUNDLE_KEY_INFO_BTN_TYPE, OriginIslandConstants.BTN_TYPE_FILLED)
+                    infoBundle.putStringArrayList(OriginIslandConstants.BUNDLE_KEY_INFO_BTN_TEXT_LIST, ArrayList(btnSource.map { it.first }))
+                    infoBundle.putParcelableArrayList(OriginIslandConstants.BUNDLE_KEY_INFO_BTN_ICON_LIST, ArrayList(btnSource.map { it.second }))
+                    infoBundle.putIntegerArrayList(OriginIslandConstants.BUNDLE_KEY_INFO_BTN_TEXT_COLOR_LIST, ArrayList(btnSource.map { textColor }))
+                    infoBundle.putIntegerArrayList(OriginIslandConstants.BUNDLE_KEY_INFO_BTN_COLOR_LIST, ArrayList(btnSource.map { fillColor }))
+                    infoBundle.putParcelableArrayList(OriginIslandConstants.BUNDLE_KEY_INFO_BTN_CLICK_RESP_LIST, ArrayList(btnSource.map { it.third }))
+                }
+            }
+            OriginIslandConstants.TEMPLATE_DRIVING_NAVI -> {
+                // Driving-navi card [RE] — turn icon + main text (highlight/normal) + assist text.
+                infoBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_INFO_DIR_ICON, largeIcon ?: defaultIcon)
+                infoBundle.putString(OriginIslandConstants.BUNDLE_KEY_INFO_MAIN_HIGHLIGHT_TEXT, title)
+                infoBundle.putString(OriginIslandConstants.BUNDLE_KEY_INFO_MAIN_NORMAL_TEXT, content)
+                infoBundle.putCharSequence(OriginIslandConstants.BUNDLE_KEY_INFO_DIR_SUB_TEXT, navMsg ?: content)
+            }
             OriginIslandConstants.TEMPLATE_BASE -> {
                 // No extra info bundle for basic
             }
@@ -393,6 +450,9 @@ object OriginIslandBuilder {
         val leftBundle = Bundle()
         leftBundle.putParcelable(BUNDLE_KEY_ISLAND_LEFT_ICON, leftIcon)
         leftBundle.putString(BUNDLE_KEY_ISLAND_LEFT_CONTENT, leftContent)
+        if (leftDoubleLine.isNotEmpty()) {
+            leftBundle.putCharSequenceArrayList(OriginIslandConstants.BUNDLE_KEY_ISLAND_LEFT_DOUBLELINE, ArrayList<CharSequence>(leftDoubleLine))
+        }
         islandBundle.putBundle(BUNDLE_KEY_ISLAND_LEFT_INFO, leftBundle)
 
         val rightBundle = Bundle()
@@ -432,6 +492,9 @@ object OriginIslandBuilder {
                 if (!isDefaultColor(bgColor)) rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_BG_COLOR, bgColor)
                 clickResp?.let { rightBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_ISLAND_RIGHT_CLICK_RESP, it) }
             }
+        }
+        if (rightDoubleLine.isNotEmpty()) {
+            rightBundle.putCharSequenceArrayList(OriginIslandConstants.BUNDLE_KEY_ISLAND_RIGHT_DOUBLELINE, ArrayList<CharSequence>(rightDoubleLine))
         }
         islandBundle.putBundle(BUNDLE_KEY_ISLAND_RIGHT_INFO, rightBundle)
         bundle.putBundle(BUNDLE_KEY_ISLAND_INFOS, islandBundle)

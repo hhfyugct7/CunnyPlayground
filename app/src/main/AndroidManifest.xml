@@ -52,6 +52,7 @@
         <activity android:name=".AppConfigActivity" />
         <activity android:name=".ExamplesActivity" />
         <activity android:name=".InspectorDetailActivity" />
+        <activity android:name=".OriginSamplesActivity" />
 
         <receiver
             android:name=".HyperCommandReceiver"
