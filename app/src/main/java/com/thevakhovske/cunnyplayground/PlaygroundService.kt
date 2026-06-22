@@ -714,24 +714,24 @@ class PlaygroundService : Service() {
                     pendingIntent = pi
                 )
             }
-            val hasActions = originActions.isNotEmpty()
-
             // Island parameters: explicit (OriginIsland playground / per-app config) or Auto.
-            // Auto picks templates by content — progress when present, else clickable actions, else priority.
+            // Auto: a progress card when the source has progress, otherwise a clean base card.
             val templateExtra = intent.getIntExtra("oi_template", 0)
             val template = when {
                 templateExtra in 1..5 -> templateExtra
                 hasProgress -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
-                hasActions -> OriginIslandConstants.TEMPLATE_BASE
-                else -> OriginIslandConstants.TEMPLATE_PRIORITY_INFO
+                else -> OriginIslandConstants.TEMPLATE_BASE
             }
             val rightTemplateExtra = intent.getIntExtra("oi_right_template", 0)
+            // Right island: progress ring when there's progress, otherwise plain text (template 4
+            // with no icon → "double-sided text", no capsule pill, no redundant second icon).
             val rightTemplate = when {
                 rightTemplateExtra in 1..6 -> rightTemplateExtra
                 hasProgress -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
-                hasActions -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_ICON_TEXT
-                else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT
+                else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON
             }
+            // Auto right-island text is icon-less; honor the icon only when a template was set explicitly.
+            val showRightIcon = rightTemplateExtra in 1..6
             val leftContent = intent.getStringExtra("oi_left_content")
                 ?: sourceApp?.takeIf { it.isNotBlank() } ?: title
             val rightContent = intent.getStringExtra("oi_right_content")
@@ -743,21 +743,32 @@ class PlaygroundService : Service() {
             val scene = intent.getStringExtra("oi_scene") ?: "NAVIGATION"
             val navMsg = intent.getStringExtra("oi_nav_msg")
             val oiProgress = intent.getIntExtra("oi_progress", derivedProgress)
-            val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), 0xFF363636.toInt())
-            val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), 0xFF41DC8E.toInt())
+            // 0 (alpha 0) tells OriginOS to theme colors itself (§5.5) — avoids the right-side text
+            // inheriting our bg/progress color. The playground passes explicit #RRGGBB colors.
+            val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), 0)
+            val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), 0)
             val keepDuration = intent.getIntExtra("oi_keep_duration", 0)
             val forceShow = intent.getBooleanExtra("oi_force_show", false)
             val dismissWhenKill = intent.getBooleanExtra("oi_dismiss_when_kill", true)
             val islandShowTime = intent.getIntExtra("oi_island_show_time", 0)
-            val progressState = if (isIndeterminate) 0 else 1
+            // 0 = updating (show the ring), 1 = success (shows a checkmark, NOT the ring). An ongoing
+            // download must stay "updating" or the right island hides the progress entirely.
+            val progressState = if (oiProgress >= 100 && !isIndeterminate) 1 else 0
 
             // Lifecycle: first post for this id = create (0); a repeat while still active = update (1).
             val operation = if (originScenes.containsKey(notificationId)) 1 else 0
 
-            // Landing page fallback: launch our own app on tap when no action intent is available.
+            // Tapping the island/card opens the cast SOURCE app — use the source notification's own
+            // content intent when we have it; fall back to launching our app only if it's missing.
+            val sourceClick = if (Build.VERSION.SDK_INT >= 33) {
+                intent.getParcelableExtra("source_content_intent", PendingIntent::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<PendingIntent>("source_content_intent")
+            }
             val launch = packageManager.getLaunchIntentForPackage(packageName)
                 ?: Intent(this, MainActivity::class.java)
-            val clickResp = PendingIntent.getActivity(
+            val clickResp = sourceClick ?: PendingIntent.getActivity(
                 this, notificationId, launch,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
@@ -790,7 +801,8 @@ class PlaygroundService : Service() {
                 dismissWhenKill = dismissWhenKill,
                 islandShowTime = islandShowTime,
                 forceShow = forceShow,
-                progressState = progressState
+                progressState = progressState,
+                showRightIcon = showRightIcon
             )
 
             // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
@@ -820,6 +832,17 @@ class PlaygroundService : Service() {
                 nb.setSmallIcon(iconRes)
             }
             if (!sourceApp.isNullOrEmpty()) nb.setSubText(sourceApp)
+
+            // 2+ actions → real notification action buttons (multiple buttons, like vivoshare's
+            // Deny/Receive). A single action is shown as the in-card chip instead, so we don't
+            // duplicate it. OriginOS styles these buttons itself (primary = accent, others = neutral).
+            if (originActions.size >= 2) {
+                originActions.forEach { a ->
+                    val pi = a.pendingIntent ?: return@forEach
+                    val ic = if (Build.VERSION.SDK_INT >= 23) a.icon?.let { IconCompat.createFromIcon(this, it) } else null
+                    nb.addAction(NotificationCompat.Action.Builder(ic, a.title, pi).build())
+                }
+            }
 
             originScenes[notificationId] = scene
             // Post with the fixed SuperX tag so OriginOS can later match & dismiss it (§3.3).

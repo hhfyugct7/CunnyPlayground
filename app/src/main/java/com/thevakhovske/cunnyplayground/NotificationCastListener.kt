@@ -419,7 +419,10 @@ class NotificationCastListener : NotificationListenerService() {
 
             putExtra("is_promoted", true)
             putExtra("when", sbn.notification.`when`)
-            
+
+            // The source notification's own content intent → OriginIsland tap opens the source app.
+            sbn.notification.contentIntent?.let { putExtra("source_content_intent", it) }
+
             // Pass original RemoteViews for miui.focus.rv injection
             val sourceRv = sbn.notification.bigContentView ?: sbn.notification.contentView
             if (sourceRv != null) {

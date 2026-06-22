@@ -151,11 +151,15 @@ object OriginIslandBuilder {
         return Icon.createWithBitmap(bmp)
     }
 
+    /** A color whose alpha is 0 (e.g. 0x0) means "use the system default" per 技术规范 §5.5. */
+    private fun isDefaultColor(color: Int): Boolean = (color ushr 24) == 0
+
     private fun colorSpan(text: String, color: Int): CharSequence {
+        // No forced color when the caller didn't specify one — let OriginOS theme the text
+        // (white on the dark island, etc.) instead of inheriting our bg/progress color.
+        if (text.isEmpty() || isDefaultColor(color)) return text
         val s = SpannableString(text)
-        if (text.isNotEmpty()) {
-            s.setSpan(ForegroundColorSpan(color), 0, text.length, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
+        s.setSpan(ForegroundColorSpan(color), 0, text.length, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE)
         return s
     }
 
@@ -240,7 +244,8 @@ object OriginIslandBuilder {
         capsuleShowTime: Int = 0,
         forceShow: Boolean = false,
         progressState: Int = 1,
-        progressMarkers: Boolean = false
+        progressMarkers: Boolean = false,
+        showRightIcon: Boolean = true
     ): Bundle {
         val bundle = Bundle()
         bundle.putInt(BUNDLE_KEY_OPERATION, operation)
@@ -254,13 +259,14 @@ object OriginIslandBuilder {
         if (displays != 0) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_DISPLAYS, displays)
         if (newNode > 0) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_NEW_NODE, newNode)
 
-        // Card/capsule tap target: the first action's intent, else the card-level clickResp (opens app).
-        val primaryClick = actions.firstOrNull { it.pendingIntent != null }?.pendingIntent ?: clickResp
-        if (primaryClick != null) bundle.putParcelable(BUNDLE_KEY_CLICK_RESP, primaryClick)
-        // A *real* action intent only (null when the notification has no action). Used for island
-        // sub-surfaces so a plain recast doesn't turn an island tap into an app launch.
-        val actionClick = actions.firstOrNull { it.pendingIntent != null }?.pendingIntent
-        val clickableActions = actions.filter { it.pendingIntent != null }
+        // Tapping the island / card / capsule opens the cast SOURCE app: clickResp = the source
+        // notification's content intent (supplied by the caller). The notification's own action is
+        // surfaced separately as a single tappable "button" chip (subInfo) — it must NOT hijack the
+        // whole-island tap.
+        clickResp?.let { bundle.putParcelable(BUNDLE_KEY_CLICK_RESP, it) }
+        val primaryAction = actions.firstOrNull { it.pendingIntent != null }
+        val actionClick = primaryAction?.pendingIntent
+        val actionTitle = primaryAction?.title?.takeIf { it.isNotBlank() }
         val baseIcon = largeIcon ?: defaultIcon
 
         // ── Base Infos ──
@@ -269,37 +275,38 @@ object OriginIslandBuilder {
         baseBundle.putCharSequence(BUNDLE_KEY_BASE_TITLE, title)
         baseBundle.putCharSequence(BUNDLE_KEY_BASE_CONTENT, content)
         when {
-            // Progress-visual card: keep the aux area empty so no stray/truncated text appears
-            // next to the progress bar (subInfo 0 = 不展示).
+            // The primary action → a tappable chip, the only in-card "button" SuperX offers. It sits
+            // in baseInfos (separate from the progress bar in infos), so it shows on the progress card
+            // too. Forced light so it stays readable (the system default renders it dark-on-dark).
+            // NOTE: SuperX has no multi-button row; extra actions can't be shown here (see service).
+            actionClick != null && actionTitle != null -> {
+                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_CAPSULE)
+                baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, actionTitle)
+                baseBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_BASE_SUB_INFO_CLICK_RESP, actionClick)
+                baseBundle.putInt(
+                    BUNDLE_KEY_BASE_SUB_TEXT_COLOR,
+                    if (!isDefaultColor(fgColor)) fgColor else Color.parseColor("#FF1C1C1E")
+                )
+                baseBundle.putInt(
+                    BUNDLE_KEY_BASE_SUB_CAPSULE_BG_COLOR,
+                    if (!isDefaultColor(bgColor)) bgColor else Color.parseColor("#FFF2F2F2")
+                )
+            }
+            // Progress-visual card with no action: keep the aux area empty — no text beside the bar.
             template == OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL -> {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_NONE)
             }
-            // Base template + actions → up to 3 tappable action images (subInfo 4)
-            template == OriginIslandConstants.TEMPLATE_BASE && clickableActions.isNotEmpty() -> {
-                val imgs = ArrayList<Icon>()
-                val pis = ArrayList<PendingIntent>()
-                clickableActions.take(3).forEach { a ->
-                    imgs.add(a.icon ?: defaultIcon)
-                    pis.add(a.pendingIntent!!)
-                }
-                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_IMAGE_LIST)
-                baseBundle.putParcelableArrayList(OriginIslandConstants.BUNDLE_KEY_BASE_SUB_IMAGE_LIST, imgs)
-                baseBundle.putParcelableArrayList(OriginIslandConstants.BUNDLE_KEY_BASE_SUB_INFO_CLICK_RESP_LIST, pis)
-            }
+            // Base template requires a subInfo; otherwise show the source subtext as plain text.
             template == OriginIslandConstants.TEMPLATE_BASE -> {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_TEXT)
                 baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, subText?.takeIf { it.isNotBlank() } ?: extra1)
             }
-            // Map the source notification's subtext into the aux text area when present
             !subText.isNullOrBlank() -> {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_TEXT)
                 baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, subText)
             }
             else -> {
-                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_CAPSULE)
-                baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, rightContent.ifBlank { "Live" })
-                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_TEXT_COLOR, Color.parseColor("#FFFFFF"))
-                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_CAPSULE_BG_COLOR, Color.parseColor("#FF0F24"))
+                baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_NONE)
             }
         }
         bundle.putBundle(BUNDLE_KEY_BASE_INFOS, baseBundle)
@@ -311,7 +318,7 @@ object OriginIslandBuilder {
                 infoBundle.putString(BUNDLE_KEY_INFO_DESCRIBE, extra1)
                 infoBundle.putString(BUNDLE_KEY_INFO_CORE_INFO, extra2)
                 infoBundle.putParcelable(BUNDLE_KEY_INFO_IMAGE, largeIcon ?: defaultIcon)
-                primaryClick?.let { infoBundle.putParcelable(BUNDLE_KEY_INFO_IMAGE_CLICK_RESP, it) }
+                clickResp?.let { infoBundle.putParcelable(BUNDLE_KEY_INFO_IMAGE_CLICK_RESP, it) }
             }
             OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL -> {
                 // nodeIcon is required (2~5). For a clean linear bar (no markers) we pass two fully
@@ -351,7 +358,9 @@ object OriginIslandBuilder {
             }
             OriginIslandConstants.TEMPLATE_NAVIGATION -> {
                 infoBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_INFO_NAV_ICON, largeIcon ?: defaultIcon)
-                infoBundle.putString(OriginIslandConstants.BUNDLE_KEY_INFO_NAV_MSG, navMsg ?: content)
+                // Default the nav text to "{Title} • {Text}".
+                val defaultNav = listOf(title, content).filter { it.isNotBlank() }.joinToString(" • ")
+                infoBundle.putString(OriginIslandConstants.BUNDLE_KEY_INFO_NAV_MSG, navMsg ?: defaultNav)
             }
             OriginIslandConstants.TEMPLATE_BASE -> {
                 // No extra info bundle for basic
@@ -364,7 +373,7 @@ object OriginIslandBuilder {
         shortInfoBundle.putParcelable(BUNDLE_KEY_SHORT_INFO_IMAGE, largeIcon ?: defaultIcon)
         shortInfoBundle.putString(BUNDLE_KEY_SHORT_INFO_CORE_INFO_SHORT, content)
         shortInfoBundle.putString(BUNDLE_KEY_SHORT_INFO_DESCRIBE_SHORT, title)
-        primaryClick?.let {
+        clickResp?.let {
             shortInfoBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_SHORT_INFO_IMAGE_CLICK_RESP, it)
         }
         bundle.putBundle(BUNDLE_KEY_SHORT_INFOS, shortInfoBundle)
@@ -375,9 +384,11 @@ object OriginIslandBuilder {
         islandBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_TEMPLATE, rightTemplate)
         if (islandShowTime > 0) islandBundle.putInt(OriginIslandConstants.BUNDLE_KEY_ISLAND_SHOW_TIME, islandShowTime)
         if (forceShow) islandBundle.putBoolean(OriginIslandConstants.BUNDLE_KEY_ISLAND_FORCE_SHOW, true)
-        // Tapping the island EXPANDS the big card (出卡, islandClick=0) — the expected behaviour.
+        // Tapping the island pill EXPANDS the big card (出卡, islandClick=0) — the expected behaviour.
         // islandClick=1 would instead fire a landing PendingIntent, which collapses the shade.
         islandBundle.putInt(OriginIslandConstants.BUNDLE_KEY_ISLAND_CLICK, OriginIslandConstants.ISLAND_CLICK_SHOW_CARD)
+        // Tapping the card's blank area → the cast source app.
+        clickResp?.let { islandBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_ISLAND_CLICK_RESP, it) }
 
         val leftBundle = Bundle()
         leftBundle.putParcelable(BUNDLE_KEY_ISLAND_LEFT_ICON, leftIcon)
@@ -387,34 +398,39 @@ object OriginIslandBuilder {
         val rightBundle = Bundle()
         when (rightTemplate) {
             TEMPLATE_RIGHT_ISLAND_WAVE -> {
-                // 1: Wave (no resources; first color main, second accent)
-                val colors = ArrayList<String>()
-                colors.add(String.format("#%06X", 0xFFFFFF and fgColor))
-                rightBundle.putStringArrayList(BUNDLE_KEY_ISLAND_RIGHT_WAVE_COLOR, colors)
+                // 1: Wave (no resources; first color main, second accent). Skip color → system default.
+                if (!isDefaultColor(fgColor)) {
+                    val colors = ArrayList<String>()
+                    colors.add(String.format("#%06X", 0xFFFFFF and fgColor))
+                    rightBundle.putStringArrayList(BUNDLE_KEY_ISLAND_RIGHT_WAVE_COLOR, colors)
+                }
                 rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_WAVE_STATE, 1)
             }
             TEMPLATE_RIGHT_ISLAND_PROGRESS -> {
-                // 2: Progress ring
+                // 2: Progress ring. Always give it a visible color (a default-themed ring can come out
+                // invisible), and let progressState drive whether the ring or a success/fail icon shows.
                 rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_PROGRESS, progress.coerceIn(0, 100))
-                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_PROGRESS_COLOR, fgColor)
-                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_PROGRESS_BG_COLOR, bgColor)
+                val ringColor = if (!isDefaultColor(fgColor)) fgColor
+                    else context.resources.getColor(R.color.vivo_super_x_progress_bar_default_color, null)
+                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_PROGRESS_COLOR, ringColor)
+                if (!isDefaultColor(bgColor)) rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_PROGRESS_BG_COLOR, bgColor)
                 rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_PROGRESS_STATE, progressState)
             }
             TEMPLATE_RIGHT_ISLAND_LOADING -> {
                 // 3: Loading dots
-                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_LOADING_COLOR, fgColor)
+                if (!isDefaultColor(fgColor)) rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_LOADING_COLOR, fgColor)
             }
             TEMPLATE_RIGHT_ISLAND_TEXT_ICON, TEMPLATE_RIGHT_ISLAND_ICON_TEXT -> {
-                // 4 or 5: Text+Icon / Icon+Text
-                rightBundle.putParcelable(BUNDLE_KEY_ISLAND_RIGHT_ICON, rightIcon)
+                // 4 or 5: Text+Icon / Icon+Text. "至少选一个" — omit the icon for plain right-side text.
+                if (showRightIcon) rightBundle.putParcelable(BUNDLE_KEY_ISLAND_RIGHT_ICON, rightIcon)
                 rightBundle.putCharSequence(BUNDLE_KEY_ISLAND_RIGHT_CONTENT, colorSpan(rightContent, fgColor))
-                actionClick?.let { rightBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_ISLAND_RIGHT_CLICK_RESP, it) }
+                clickResp?.let { rightBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_ISLAND_RIGHT_CLICK_RESP, it) }
             }
             TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT -> {
-                // 6: Capsule text
+                // 6: Capsule text (text-only — no redundant right-side icon)
                 rightBundle.putCharSequence(BUNDLE_KEY_ISLAND_RIGHT_CAPSULE_CONTENT, colorSpan(rightContent, fgColor))
-                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_BG_COLOR, bgColor)
-                actionClick?.let { rightBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_ISLAND_RIGHT_CLICK_RESP, it) }
+                if (!isDefaultColor(bgColor)) rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_BG_COLOR, bgColor)
+                clickResp?.let { rightBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_ISLAND_RIGHT_CLICK_RESP, it) }
             }
         }
         islandBundle.putBundle(BUNDLE_KEY_ISLAND_RIGHT_INFO, rightBundle)
@@ -425,11 +441,11 @@ object OriginIslandBuilder {
         capsuleBundle.putInt(BUNDLE_KEY_CAPSULE_STATE, 1)
         capsuleBundle.putParcelable(BUNDLE_KEY_CAPSULE_ICON, rightIcon)
         capsuleBundle.putString(BUNDLE_KEY_CAPSULE_CONTENT, rightContent)
-        capsuleBundle.putInt(BUNDLE_KEY_CAPSULE_CONTENT_COLOR, fgColor)
-        capsuleBundle.putInt(BUNDLE_KEY_CAPSULE_BG_COLOR, bgColor)
+        if (!isDefaultColor(fgColor)) capsuleBundle.putInt(BUNDLE_KEY_CAPSULE_CONTENT_COLOR, fgColor)
+        if (!isDefaultColor(bgColor)) capsuleBundle.putInt(BUNDLE_KEY_CAPSULE_BG_COLOR, bgColor)
         if (capsuleShowTime > 0) capsuleBundle.putInt(OriginIslandConstants.BUNDLE_KEY_CAPSULE_SHOW_TIME, capsuleShowTime)
         if (newNode > 0) capsuleBundle.putInt(OriginIslandConstants.BUNDLE_KEY_CAPSULE_NEW_NODE, newNode)
-        primaryClick?.let { capsuleBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_CAPSULE_CLICK_RESP, it) }
+        clickResp?.let { capsuleBundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_CAPSULE_CLICK_RESP, it) }
         bundle.putBundle(BUNDLE_KEY_CAPSULE, capsuleBundle)
 
         return bundle

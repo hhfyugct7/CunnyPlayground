@@ -127,6 +127,7 @@
     <string name="section_si_meta">Metadata</string>
     <string name="section_si_images">Images &amp; Items</string>
     <string name="section_si_fields">Editable Fields</string>
+    <string name="section_si_dump">Raw Dump (dumpsys-style)</string>
     <string name="btn_replicate">Replicate (NAVIGATION scene)</string>
     <string name="btn_pin">Pin to cache</string>
     <string name="btn_unpin">Unpin</string>

@@ -122,6 +122,24 @@ object SuperXInspectorStore {
 
                 File(dir, "data.json").writeText(dataJson.toString())
 
+                // dumpsys-style raw text dump: shows everything Android exposes (incl. android.* keys
+                // and parcelled-bundle sizes) even for proprietary bundles we can't deserialize.
+                val dump = StringBuilder()
+                dump.append("package : ${sbn.packageName}\n")
+                dump.append("key     : ${sbn.key}\n")
+                dump.append("id/tag  : ${sbn.id} / ${sbn.tag}\n")
+                dump.append("postTime: ${sbn.postTime}\n")
+                dump.append("\n--- notification.extras (${extras.size()} keys) ---\n")
+                for (k in extras.keySet().sorted()) {
+                    val v = try {
+                        @Suppress("DEPRECATION") extras.get(k)?.toString()
+                    } catch (e: Exception) {
+                        "(unreadable: ${e.javaClass.simpleName})"
+                    }
+                    dump.append("$k = $v\n")
+                }
+                File(dir, "dump.txt").writeText(dump.toString())
+
                 // Update records.json (newest first, preserve pinned flag, prune unpinned beyond cap).
                 val existing = readRecords(appCtx)
                 var pinned = false
@@ -258,6 +276,13 @@ object SuperXInspectorStore {
             )
         }
         return out
+    }
+
+    fun loadDump(context: Context, id: String): String? {
+        return try {
+            val f = File(recordDir(context, id), "dump.txt")
+            if (f.exists()) f.readText() else null
+        } catch (e: Exception) { null }
     }
 
     fun loadData(context: Context, id: String): JSONObject? {
