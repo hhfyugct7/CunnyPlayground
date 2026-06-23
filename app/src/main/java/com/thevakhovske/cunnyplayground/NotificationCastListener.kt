@@ -420,7 +420,8 @@ class NotificationCastListener : NotificationListenerService() {
 
         // Deduping: Generate a key based on content that effects the UI
         val actionTitles = actionsList?.joinToString { it.title?.toString() ?: "" } ?: ""
-        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|OL:$originLeftText|OR:$originRightText|OT:$originTemplate/$originRightTemplate|P:$progress/$progressMax/$isIndeterminate|A:$actionTitles"
+        // Also append sbn.postTime to ensure genuine app updates (like RemoteViews changes) are not dropped
+        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|OL:$originLeftText|OR:$originRightText|OT:$originTemplate/$originRightTemplate|P:$progress/$progressMax/$isIndeterminate|A:$actionTitles|PT:${sbn.postTime}"
         
         if (castMode == "hyperisland") {
             //Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
@@ -730,8 +731,15 @@ class NotificationCastListener : NotificationListenerService() {
         val artist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: sbn.notification.extras.getString("android.text") ?: "Unknown"
         
         val durationMs = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-        val positionMs = playbackState?.position ?: 0L
         val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+        
+        // Dynamically calculate current position using elapsedRealtime, because playbackState.position is a static snapshot
+        val positionMs = if (isPlaying && playbackState != null) {
+            val timeDelta = android.os.SystemClock.elapsedRealtime() - playbackState.lastPositionUpdateTime
+            (playbackState.position + (timeDelta * playbackState.playbackSpeed)).toLong()
+        } else {
+            playbackState?.position ?: 0L
+        }
 
         val rv = android.widget.RemoteViews(packageName, R.layout.layout_origin_media_player)
         rv.setTextViewText(R.id.media_track_title, title)
@@ -759,12 +767,22 @@ class NotificationCastListener : NotificationListenerService() {
         
         var safeAlbumArt = rawAlbumArt
         if (rawAlbumArt != null) {
-            val maxDimen = Math.max(rawAlbumArt.width, rawAlbumArt.height)
-            if (maxDimen > 256) {
-                val scale = 256f / maxDimen
-                val newW = (rawAlbumArt.width * scale).toInt().coerceAtLeast(1)
-                val newH = (rawAlbumArt.height * scale).toInt().coerceAtLeast(1)
-                safeAlbumArt = android.graphics.Bitmap.createScaledBitmap(rawAlbumArt, newW, newH, true)
+            try {
+                val maxDimen = Math.max(rawAlbumArt.width, rawAlbumArt.height)
+                if (maxDimen > 256) {
+                    val scale = 256f / maxDimen
+                    val newW = (rawAlbumArt.width * scale).toInt().coerceAtLeast(1)
+                    val newH = (rawAlbumArt.height * scale).toInt().coerceAtLeast(1)
+                    safeAlbumArt = android.graphics.Bitmap.createScaledBitmap(rawAlbumArt, newW, newH, true)
+                }
+                
+                // Hardware bitmaps cause Palette.from to crash, convert it safely
+                if (safeAlbumArt != null && safeAlbumArt.config == android.graphics.Bitmap.Config.HARDWARE) {
+                    safeAlbumArt = safeAlbumArt.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                }
+            } catch (e: Exception) {
+                Log.e("NotificationCast", "Failed to scale/convert album art", e)
+                safeAlbumArt = null
             }
         }
         
