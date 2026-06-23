@@ -996,8 +996,8 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("source_pkg", sbn.packageName)
             val timeText = formatTime(positionMs)
             
-            putExtra("title", " ")
-            putExtra("text", " ")
+            putExtra("title", "\u200B")
+            putExtra("text", "\u200B")
             putExtra("status_chip_text", timeText)
             putExtra("force_update_tick", System.currentTimeMillis())
             putExtra("click_resp", sbn.notification.contentIntent)
