@@ -28,6 +28,7 @@ class NotificationCastListener : NotificationListenerService() {
         val activeSmallIcons = ConcurrentHashMap<Int, android.graphics.drawable.Icon>()
         val activeLargeIcons = ConcurrentHashMap<Int, android.graphics.drawable.Icon>()
         val activeLargeBitmaps = ConcurrentHashMap<Int, android.graphics.Bitmap>()
+        var lastActiveMediaCastId: Int? = null
     }
     
     private val lastNotificationContent = HashMap<Int, String>()
@@ -486,6 +487,7 @@ class NotificationCastListener : NotificationListenerService() {
 
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
+            putExtra("force_update_tick", System.currentTimeMillis())
             if (iconToUse != null) {
                 activeSmallIcons[castId] = iconToUse
             } else {
@@ -814,6 +816,18 @@ class NotificationCastListener : NotificationListenerService() {
         val durationMs = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
         val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
         
+        if (isPlaying && lastActiveMediaCastId != castId) {
+            lastActiveMediaCastId?.let { oldId ->
+                // Cancel the old media island if a new one starts playing
+                val cancelIntent = Intent(this, PlaygroundService::class.java).apply {
+                    action = PlaygroundService.ACTION_CANCEL
+                    putExtra("id", oldId)
+                }
+                startService(cancelIntent)
+            }
+            lastActiveMediaCastId = castId
+        }
+        
         // Dynamically calculate current position using elapsedRealtime, because playbackState.position is a static snapshot
         val positionMs = if (isPlaying && playbackState != null) {
             val timeDelta = android.os.SystemClock.elapsedRealtime() - playbackState.lastPositionUpdateTime
@@ -962,8 +976,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("cast_mode", "originisland")
             putExtra("oi_template", 7)
             putExtra("oi_custom_template", rv)
-            putExtra("oi_right_template", 1)
-            putExtra("oi_wave_state", if (isPlaying) 1 else 0)
+            putExtra("oi_right_template", 6)
             
             // Capsule icon: the album cover, or the placeholder cover when art is missing/invalid.
             if (cover != null && Build.VERSION.SDK_INT >= 23) {
