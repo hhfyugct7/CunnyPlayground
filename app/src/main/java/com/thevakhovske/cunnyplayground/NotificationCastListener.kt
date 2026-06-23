@@ -931,7 +931,7 @@ class NotificationCastListener : NotificationListenerService() {
         try {
             rv.setColorStateList(
                 R.id.media_progress_bar, "setProgressTintList",
-                android.content.res.ColorStateList.valueOf(waveColor)
+                android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
             )
         } catch (e: Throwable) {
             Log.w("NotificationCast", "progress tint unavailable", e)
