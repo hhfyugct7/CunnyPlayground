@@ -255,7 +255,8 @@ object OriginIslandBuilder {
         iconStatusType: Int = -1,
         leftDoubleLine: List<String> = emptyList(),
         rightDoubleLine: List<String> = emptyList(),
-        buttonTitles: List<String> = emptyList()
+        buttonTitles: List<String> = emptyList(),
+        customTemplate: android.widget.RemoteViews? = null
     ): Bundle {
         val bundle = Bundle()
         bundle.putInt(BUNDLE_KEY_OPERATION, operation)
@@ -340,6 +341,11 @@ object OriginIslandBuilder {
         // ── Specific Template Infos ──
         val infoBundle = Bundle()
         when (template) {
+            OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM -> {
+                customTemplate?.let {
+                    bundle.putParcelable(OriginIslandConstants.BUNDLE_KEY_CUSTOM_TEMPLATE, it)
+                }
+            }
             OriginIslandConstants.TEMPLATE_PRIORITY_INFO -> {
                 infoBundle.putString(BUNDLE_KEY_INFO_DESCRIBE, extra1)
                 infoBundle.putString(BUNDLE_KEY_INFO_CORE_INFO, extra2)

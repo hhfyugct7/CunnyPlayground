@@ -21,6 +21,23 @@ import java.io.FileOutputStream
 class NotificationCastListener : NotificationListenerService() {
     
     private val lastNotificationContent = HashMap<Int, String>()
+    private val pollHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val pollRunnable = object : Runnable {
+        override fun run() {
+            try {
+                val prefs = getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
+                if (prefs.getBoolean("cast_notifications", false)) {
+                    activeNotifications?.forEach { sbn ->
+                        if (sbn.isOngoing && sbn.notification.extras.getBoolean("android.showChronometer", false)) {
+                            // Re-process to update the chronometer string for OriginIsland Capsule
+                            onNotificationPosted(sbn)
+                        }
+                    }
+                }
+            } catch (e: Exception) {}
+            pollHandler.postDelayed(this, 1000)
+        }
+    }
 
     private val reloadReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -51,6 +68,12 @@ class NotificationCastListener : NotificationListenerService() {
         super.onListenerConnected()
         captureExistingSuperX()
         reloadNotifications()
+        pollHandler.post(pollRunnable)
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        pollHandler.removeCallbacks(pollRunnable)
     }
 
     /** Inspector: snapshot any SuperX atomic notifications already present when we connect. */
@@ -316,6 +339,19 @@ class NotificationCastListener : NotificationListenerService() {
         }
         val segmentsCount = if (segments != null) (segments.size).coerceAtLeast(0) else 0
 
+        val segmentColors = IntArray(segmentsCount)
+        if (segments != null) {
+            for (i in 0 until segmentsCount) {
+                val bundle = segments[i]
+                var c = bundle.getInt("color", 0)
+                if (c == 0) c = bundle.getInt("android.color", 0)
+                segmentColors[i] = c
+            }
+        }
+
+        // Extract shortCriticalText
+        val shortCriticalText = extras.getCharSequence("android.shortCriticalText")?.toString() ?: extras.getString("android.shortCriticalText")
+
         // Extract Large Icon
         val largeIcon = extras.get("android.largeIcon")
 
@@ -334,11 +370,32 @@ class NotificationCastListener : NotificationListenerService() {
             processedChipText = "$percent%"
         }
 
+        // Calculate chronometer or shortCriticalText BEFORE deduplication
+        val showChronometer = extras.getBoolean("android.showChronometer", false)
+        if (showChronometer && castMode != "hyperisland") {
+            val base = sbn.notification.`when`
+            if (base > 0) {
+                val elapsedMs = System.currentTimeMillis() - base
+                val totalSeconds = Math.abs(elapsedMs) / 1000
+                val seconds = totalSeconds % 60
+                val minutes = (totalSeconds / 60) % 60
+                val hours = totalSeconds / 3600
+                processedChipText = if (hours > 0) {
+                    String.format("%02d:%02d:%02d", hours, minutes, seconds)
+                } else {
+                    String.format("%02d:%02d", minutes, seconds)
+                }
+            }
+        } else if (!shortCriticalText.isNullOrEmpty() && castMode != "hyperisland") {
+            processedChipText = shortCriticalText
+        }
+
         // Unique ID for this cast
         val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
 
         // Deduping: Generate a key based on content that effects the UI
-        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|OL:$originLeftText|OR:$originRightText|OT:$originTemplate/$originRightTemplate|P:$progress/$progressMax/$isIndeterminate"
+        val actionTitles = actionsList?.joinToString { it.title?.toString() ?: "" } ?: ""
+        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|OL:$originLeftText|OR:$originRightText|OT:$originTemplate/$originRightTemplate|P:$progress/$progressMax/$isIndeterminate|A:$actionTitles"
         
         if (castMode == "hyperisland") {
             //Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
@@ -358,20 +415,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("subtext", rawSubText)
             putExtra("source_app", sourceApp)
             putExtra("source_pkg", sbn.packageName)
-            val limit7Char = prefs.getBoolean("limit_chip_7char", false)
-            var processedChipText = if (limit7Char && finalChipText.length > 7 && castMode != "hyperisland") {
-                finalChipText.take(7)
-            } else {
-                finalChipText
-            }
-
-            // Override shortcriticaltext with progress percentage
-            val showPercent = prefs.getBoolean("show_progress_percentage", false)
-            if (showPercent && hasProgress && progressMax > 0 && !isIndeterminate && castMode != "hyperisland") {
-                val percent = (progress * 100) / progressMax
-                processedChipText = "$percent%"
-            }
-
+            // Assign the finalized chip text
             putExtra("status_chip_text", processedChipText)
             
             if (castMode == "hyperisland") {
@@ -403,9 +447,11 @@ class NotificationCastListener : NotificationListenerService() {
                 putExtra("progress_indeterminate", isIndeterminate)
                 putExtra("show_progress", true)
                 putExtra("progress_segments", segmentsCount)
+                putExtra("progress_segment_colors", segmentColors)
             } else {
                 putExtra("show_progress", false)
             }
+            putExtra("is_ongoing", sbn.isOngoing)
             
             // Pass Large Icon
             if (largeIcon != null) {
@@ -420,6 +466,14 @@ class NotificationCastListener : NotificationListenerService() {
 
             putExtra("is_promoted", true)
             putExtra("when", sbn.notification.`when`)
+            putExtra("notification_color", sbn.notification.color)
+            
+            if (showChronometer) {
+                putExtra("chronometer_base", sbn.notification.`when`)
+                if (Build.VERSION.SDK_INT >= 24) {
+                    putExtra("chronometer_count_down", extras.getBoolean("android.chronometerCountDown", false))
+                }
+            }
 
             // The source notification's own content intent → OriginIsland tap opens the source app.
             sbn.notification.contentIntent?.let { putExtra("source_content_intent", it) }

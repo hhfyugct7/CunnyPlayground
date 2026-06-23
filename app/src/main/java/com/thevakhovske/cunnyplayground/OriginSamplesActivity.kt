@@ -136,6 +136,12 @@ private fun samples(): List<OriginSample> = listOf(
             C.TEMPLATE_PRIORITY_INFO, C.TEMPLATE_RIGHT_ISLAND_LOADING, "NAVIGATION",
             extra1 = "Emergency", extra2 = "SOS activated", icon = R.drawable.ic_alert,
             adv = OriginAdvanced(lightColor = "#FF3B30", keepScreenOn = true))
+    },
+    OriginSample("Custom Template", "RemoteViews custom template (7)") { c ->
+        val remoteViews = android.widget.RemoteViews(c.packageName, R.layout.my_insane_island_layout)
+        send(c, "Custom Template", "RemoteViews custom layout", "", "",
+            C.TEMPLATE_NOTIF_CUSTOM, C.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT, "NAVIGATION",
+            adv = OriginAdvanced(customTemplate = remoteViews))
     }
 )
 

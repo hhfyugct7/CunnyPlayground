@@ -1244,7 +1244,8 @@ data class OriginAdvanced(
     val iconStatusType: Int = -1,
     val leftDoubleLine: String = "",
     val rightDoubleLine: String = "",
-    val buttonTitles: String = ""
+    val buttonTitles: String = "",
+    val customTemplate: android.widget.RemoteViews? = null
 )
 
 private fun splitCsv(s: String): ArrayList<String> =
@@ -1294,6 +1295,9 @@ fun postOriginIslandNotification(
         putStringArrayListExtra("oi_left_doubleline", splitCsv(adv.leftDoubleLine))
         putStringArrayListExtra("oi_right_doubleline", splitCsv(adv.rightDoubleLine))
         putStringArrayListExtra("oi_button_titles", splitCsv(adv.buttonTitles))
+        if (adv.customTemplate != null) {
+            putExtra("oi_custom_template", adv.customTemplate)
+        }
         putExtra("show_progress", template == OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL ||
             rightTemplate == OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS)
         putExtra("progress", progress)

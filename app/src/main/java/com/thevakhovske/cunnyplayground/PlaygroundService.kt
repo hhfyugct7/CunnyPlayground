@@ -721,9 +721,14 @@ class PlaygroundService : Service() {
             // Only the buttons template (8) is used for 2+ actions — but ButtonsSuperXTemplate does NOT
             // wire a whole-card click, so 0–1 action notifications stay on a tappable template (the lone
             // action shows as the in-card chip) so tapping the card still opens the source app.
+            val sourceRv = intent.getParcelableExtra<android.widget.RemoteViews>("miui_rv")
+            val isOngoing = intent.getBooleanExtra("is_ongoing", false)
+            val shouldGenerateLiveUpdate = sourceRv == null && (isOngoing || hasProgress)
+
             val templateExtra = intent.getIntExtra("oi_template", 0)
             val template = when {
                 templateExtra in 1..9 -> templateExtra
+                sourceRv != null || shouldGenerateLiveUpdate -> OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM
                 originActions.size >= 2 -> OriginIslandConstants.TEMPLATE_BUTTONS
                 hasProgress -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
                 else -> OriginIslandConstants.TEMPLATE_BASE
@@ -733,6 +738,7 @@ class PlaygroundService : Service() {
             // with no icon → "double-sided text", no capsule pill, no redundant second icon).
             val rightTemplate = when {
                 rightTemplateExtra in 1..6 -> rightTemplateExtra
+                !statusChipText.isNullOrEmpty() -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT
                 hasProgress -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS
                 else -> OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON
             }
@@ -740,8 +746,11 @@ class PlaygroundService : Service() {
             val showRightIcon = rightTemplateExtra in 1..6
             val leftContent = intent.getStringExtra("oi_left_content")
                 ?: sourceApp?.takeIf { it.isNotBlank() } ?: title
-            val rightContent = intent.getStringExtra("oi_right_content")
-                ?: statusChipText?.takeIf { it.isNotBlank() } ?: text
+            val rightContent = if (!statusChipText.isNullOrEmpty()) {
+                statusChipText
+            } else {
+                intent.getStringExtra("oi_right_content")?.takeIf { it.isNotBlank() } ?: text
+            }
             val extra1 = intent.getStringExtra("oi_extra1") ?: title
             val extra2 = intent.getStringExtra("oi_extra2") ?: text
             val extra3 = intent.getStringExtra("oi_extra3") ?: ""
@@ -752,16 +761,29 @@ class PlaygroundService : Service() {
             // 0 (alpha 0) tells OriginOS to theme colors itself (§5.5) — avoids the right-side text
             // inheriting our bg/progress color. The playground passes explicit #RRGGBB colors.
             val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), 0)
-            val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), 0)
+            val fgColorRaw = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), 0)
+            val notificationColor = intent.getIntExtra("notification_color", 0)
+            val fgColor = if (fgColorRaw != 0) {
+                fgColorRaw
+            } else if (rightTemplate == OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS) {
+                notificationColor // Only inherit to fgColor for native progress ring so text isn't tinted
+            } else {
+                0
+            }
             val keepDuration = intent.getIntExtra("oi_keep_duration", 0)
             val forceShow = intent.getBooleanExtra("oi_force_show", false)
             val dismissWhenKill = intent.getBooleanExtra("oi_dismiss_when_kill", true)
             val islandShowTime = intent.getIntExtra("oi_island_show_time", 0)
             val displaysVal = intent.getIntExtra("oi_displays", 0)
+            val computedDisplays = if (displaysVal == 0) {
+                OriginIslandConstants.DISPLAY_NOTIFICATION or OriginIslandConstants.DISPLAY_LOCKSCREEN or OriginIslandConstants.DISPLAY_STATUSBAR or OriginIslandConstants.DISPLAY_AOD
+            } else {
+                displaysVal
+            }
             // Advanced / decompiled extras (playground custom controls)
             val cardBgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_card_bg_color"), 0)
             val keepScreenOn = intent.getBooleanExtra("oi_keep_screen_on", false)
-            val disableInvert = intent.getBooleanExtra("oi_disable_invert", false)
+            val disableInvert = intent.getBooleanExtra("oi_disable_invert", true)
             val lightColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_light_color"), 0)
             val lightMode = intent.getIntExtra("oi_light_mode", 0)
             val generatingStatus = intent.getIntExtra("oi_generating_status", 0)
@@ -769,23 +791,13 @@ class PlaygroundService : Service() {
             val leftDoubleLine = intent.getStringArrayListExtra("oi_left_doubleline") ?: arrayListOf()
             val rightDoubleLine = intent.getStringArrayListExtra("oi_right_doubleline") ?: arrayListOf()
             val buttonTitles = intent.getStringArrayListExtra("oi_button_titles") ?: arrayListOf()
-            // 0 = updating (show the ring), 1 = success (shows a checkmark, NOT the ring). An ongoing
-            // download must stay "updating" or the right island hides the progress entirely.
-            val progressState = if (oiProgress >= 100 && !isIndeterminate) 1 else 0
-
-            // Lifecycle: first post for this id = create (0); a repeat while still active = update (1).
-            val operation = if (originScenes.containsKey(notificationId)) 1 else 0
-
-            // Tapping the island/card opens the cast SOURCE app — use the source notification's own
-            // content intent when we have it; fall back to launching our app only if it's missing.
+            // Compute source click response early so we can attach it to custom views
             val sourceClick = if (Build.VERSION.SDK_INT >= 33) {
                 intent.getParcelableExtra("source_content_intent", PendingIntent::class.java)
             } else {
                 @Suppress("DEPRECATION")
                 intent.getParcelableExtra<PendingIntent>("source_content_intent")
             }
-            // Fallback when the source notification has no content intent: open the SOURCE app's
-            // launcher (never our own app), so tapping the card always lands on the right app.
             val sourcePkg = intent.getStringExtra("source_pkg")
             val launch = (sourcePkg?.let { packageManager.getLaunchIntentForPackage(it) })
                 ?: packageManager.getLaunchIntentForPackage(packageName)
@@ -794,6 +806,113 @@ class PlaygroundService : Service() {
                 this, notificationId, launch,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
+
+            val explicitCustomTemplate = intent.getParcelableExtra<android.widget.RemoteViews>("oi_custom_template")
+            val customTemplate = if (sourceRv != null) {
+                val wrappedRv = android.widget.RemoteViews(packageName, R.layout.focus_rv_wrapper)
+                wrappedRv.removeAllViews(R.id.rv_wrapper_container)
+                wrappedRv.addView(R.id.rv_wrapper_container, sourceRv)
+                wrappedRv.setOnClickPendingIntent(R.id.rv_wrapper_container, clickResp)
+                wrappedRv
+            } else if (shouldGenerateLiveUpdate) {
+                val rv = android.widget.RemoteViews(packageName, R.layout.layout_origin_live_update)
+                rv.setOnClickPendingIntent(R.id.live_update_container, clickResp)
+                rv.setTextViewText(R.id.live_update_title, title)
+                rv.setTextViewText(R.id.live_update_text, text)
+                
+                // Icon
+                if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
+                    val roundedIcon = createRoundedIcon(this, iconObj, 12f, 44f, 44f) ?: iconObj
+                    rv.setImageViewIcon(R.id.live_update_icon, roundedIcon)
+                } else {
+                    rv.setImageViewResource(R.id.live_update_icon, iconRes)
+                }
+
+                // Large Icon
+                if (largeIcon != null) {
+                    rv.setViewVisibility(R.id.live_update_large_icon, android.view.View.VISIBLE)
+                    if (Build.VERSION.SDK_INT >= 23) {
+                        val roundedLargeIcon = createRoundedIcon(this, largeIcon, 12f, 44f, 44f) ?: largeIcon
+                        rv.setImageViewIcon(R.id.live_update_large_icon, roundedLargeIcon)
+                    }
+                } else {
+                    rv.setViewVisibility(R.id.live_update_large_icon, android.view.View.GONE)
+                }
+
+                // Chip Text / Chronometer
+                val chronometerBase = intent.getLongExtra("chronometer_base", 0L)
+                if (chronometerBase > 0) {
+                    val countDown = intent.getBooleanExtra("chronometer_count_down", false)
+                    val elapsedRealtimeBase = android.os.SystemClock.elapsedRealtime() - (System.currentTimeMillis() - chronometerBase)
+                    
+                    rv.setViewVisibility(R.id.live_update_chip, android.view.View.GONE)
+                    rv.setViewVisibility(R.id.live_update_chronometer, android.view.View.VISIBLE)
+                    rv.setChronometer(R.id.live_update_chronometer, elapsedRealtimeBase, "%s", true)
+                    if (Build.VERSION.SDK_INT >= 24) {
+                        rv.setChronometerCountDown(R.id.live_update_chronometer, countDown)
+                    }
+                } else if (!statusChipText.isNullOrEmpty()) {
+                    rv.setViewVisibility(R.id.live_update_chronometer, android.view.View.GONE)
+                    rv.setViewVisibility(R.id.live_update_chip, android.view.View.VISIBLE)
+                    rv.setTextViewText(R.id.live_update_chip, statusChipText)
+                } else {
+                    rv.setViewVisibility(R.id.live_update_chronometer, android.view.View.GONE)
+                    rv.setViewVisibility(R.id.live_update_chip, android.view.View.GONE)
+                }
+
+                // Progress Segments & Regular Progress
+                val segmentsCount = intent.getIntExtra("progress_segments", 0)
+                val segmentColors = intent.getIntArrayExtra("progress_segment_colors")
+                if (hasProgress) {
+                    if (segmentsCount > 0) {
+                        rv.setViewVisibility(R.id.live_update_progress, android.view.View.GONE)
+                        rv.setViewVisibility(R.id.live_update_segments_container, android.view.View.VISIBLE)
+                        rv.removeAllViews(R.id.live_update_segments_container)
+                        val activeColor = if (notificationColor != 0) notificationColor else android.graphics.Color.parseColor("#34C759")
+                        val inactiveColor = android.graphics.Color.parseColor("#33FFFFFF")
+                        val activeSegments = if (progressMax > 0) (progress * segmentsCount) / progressMax else 0
+                        for (i in 0 until segmentsCount) {
+                            val segRv = android.widget.RemoteViews(packageName, R.layout.layout_origin_progress_segment)
+                            val specificColor = if (segmentColors != null && i < segmentColors.size && segmentColors[i] != 0) segmentColors[i] else activeColor
+                            segRv.setInt(R.id.progress_segment_view, "setColorFilter", if (i < activeSegments) specificColor else inactiveColor)
+                            rv.addView(R.id.live_update_segments_container, segRv)
+                        }
+                    } else {
+                        rv.setViewVisibility(R.id.live_update_segments_container, android.view.View.GONE)
+                        rv.setViewVisibility(R.id.live_update_progress, android.view.View.VISIBLE)
+                        rv.setProgressBar(R.id.live_update_progress, progressMax, progress, isIndeterminate)
+                    }
+                } else {
+                    rv.setViewVisibility(R.id.live_update_progress, android.view.View.GONE)
+                    rv.setViewVisibility(R.id.live_update_segments_container, android.view.View.GONE)
+                }
+
+                // Action Buttons
+                if (originActions.isNotEmpty()) {
+                    rv.setViewVisibility(R.id.live_update_actions_container, android.view.View.VISIBLE)
+                    rv.removeAllViews(R.id.live_update_actions_container)
+                    originActions.take(3).forEach { action ->
+                        val btnRv = android.widget.RemoteViews(packageName, R.layout.layout_origin_action_button)
+                        btnRv.setTextViewText(R.id.action_button_text, action.title)
+                        if (action.pendingIntent != null) {
+                            btnRv.setOnClickPendingIntent(R.id.action_button_text, action.pendingIntent)
+                        }
+                        rv.addView(R.id.live_update_actions_container, btnRv)
+                    }
+                } else {
+                    rv.setViewVisibility(R.id.live_update_actions_container, android.view.View.GONE)
+                }
+
+                rv
+            } else {
+                explicitCustomTemplate
+            }
+            // 0 = updating (show the ring), 1 = success (shows a checkmark, NOT the ring). An ongoing
+            // download must stay "updating" or the right island hides the progress entirely.
+            val progressState = if (oiProgress >= 100 && !isIndeterminate) 1 else 0
+
+            // Lifecycle: first post for this id = create (0); a repeat while still active = update (1).
+            val operation = if (originScenes.containsKey(notificationId)) 1 else 0
 
             val bundle = OriginIslandBuilder.buildBundle(
                 context = this,
@@ -821,7 +940,7 @@ class PlaygroundService : Service() {
                 keepDuration = keepDuration,
                 sound = false,
                 dismissWhenKill = dismissWhenKill,
-                displays = displaysVal,
+                displays = computedDisplays,
                 islandShowTime = islandShowTime,
                 forceShow = forceShow,
                 progressState = progressState,
@@ -835,7 +954,8 @@ class PlaygroundService : Service() {
                 iconStatusType = iconStatusType,
                 leftDoubleLine = leftDoubleLine,
                 rightDoubleLine = rightDoubleLine,
-                buttonTitles = buttonTitles
+                buttonTitles = buttonTitles,
+                customTemplate = customTemplate
             )
 
             // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
@@ -874,6 +994,33 @@ class PlaygroundService : Service() {
             notificationManager.notify(OriginIslandConstants.SUPERX_TAG, notificationId, nb.build())
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun createRoundedIcon(context: Context, icon: android.graphics.drawable.Icon, radiusDp: Float, widthDp: Float, heightDp: Float): android.graphics.drawable.Icon? {
+        try {
+            val drawable = icon.loadDrawable(context) ?: return null
+            val density = context.resources.displayMetrics.density
+            val width = (widthDp * density).toInt()
+            val height = (heightDp * density).toInt()
+            val output = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(output)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            val rect = android.graphics.RectF(0f, 0f, width.toFloat(), height.toFloat())
+            val radius = radiusDp * density
+            canvas.drawRoundRect(rect, radius, radius, paint)
+            paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+            drawable.setBounds(0, 0, width, height)
+            
+            // To ensure the drawable fits nicely
+            val tempBmp = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+            val tempCanvas = android.graphics.Canvas(tempBmp)
+            drawable.draw(tempCanvas)
+            canvas.drawBitmap(tempBmp, 0f, 0f, paint)
+            return android.graphics.drawable.Icon.createWithBitmap(output)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
     }
 
