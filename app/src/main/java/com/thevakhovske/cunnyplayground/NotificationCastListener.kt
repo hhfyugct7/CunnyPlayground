@@ -18,10 +18,16 @@ import android.view.View
 import java.io.File
 import java.io.FileOutputStream
 
+import java.util.concurrent.ConcurrentHashMap
+
 class NotificationCastListener : NotificationListenerService() {
 
     companion object {
-        val activeControllers = HashMap<Int, android.media.session.MediaController>()
+        val activeControllers = ConcurrentHashMap<Int, android.media.session.MediaController>()
+        val activeRemoteViews = ConcurrentHashMap<Int, android.widget.RemoteViews>()
+        val activeSmallIcons = ConcurrentHashMap<Int, android.graphics.drawable.Icon>()
+        val activeLargeIcons = ConcurrentHashMap<Int, android.graphics.drawable.Icon>()
+        val activeLargeBitmaps = ConcurrentHashMap<Int, android.graphics.Bitmap>()
     }
     
     private val lastNotificationContent = HashMap<Int, String>()
@@ -480,7 +486,9 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)
             if (iconToUse != null) {
-                putExtra("small_icon_obj", iconToUse)
+                activeSmallIcons[castId] = iconToUse
+            } else {
+                activeSmallIcons.remove(castId)
             }
             // Combine original actions with discovered ones
             val allActions = ArrayList<Notification.Action>()
@@ -499,13 +507,16 @@ class NotificationCastListener : NotificationListenerService() {
             }
             putExtra("is_ongoing", sbn.isOngoing)
             
-            // Pass Large Icon
+            // Pass Large Icon via memory
             if (largeIcon != null) {
                 if (Build.VERSION.SDK_INT >= 23 && largeIcon is android.graphics.drawable.Icon) {
-                    putExtra("large_icon_obj", largeIcon)
+                    activeLargeIcons[castId] = largeIcon
                 } else if (largeIcon is android.graphics.Bitmap) {
-                    putExtra("large_icon_bitmap", largeIcon)
+                    activeLargeBitmaps[castId] = largeIcon
                 }
+            } else {
+                activeLargeIcons.remove(castId)
+                activeLargeBitmaps.remove(castId)
             }
             
             putExtra("cast_mode", castMode)
@@ -524,10 +535,12 @@ class NotificationCastListener : NotificationListenerService() {
             // The source notification's own content intent → OriginIsland tap opens the source app.
             sbn.notification.contentIntent?.let { putExtra("source_content_intent", it) }
 
-            // Pass original RemoteViews for miui.focus.rv injection
+            // Pass original RemoteViews for miui.focus.rv injection via memory
             val sourceRv = getComplexRemoteViews(sbn.notification)
             if (sourceRv != null) {
-                putExtra("miui_rv", sourceRv)
+                activeRemoteViews[castId] = sourceRv
+            } else {
+                activeRemoteViews.remove(castId)
             }
         }
         startService(intent)
@@ -739,6 +752,10 @@ class NotificationCastListener : NotificationListenerService() {
             } catch (e: Exception) {}
         }
         activeControllers.remove(castId)
+        activeRemoteViews.remove(castId)
+        activeSmallIcons.remove(castId)
+        activeLargeIcons.remove(castId)
+        activeLargeBitmaps.remove(castId)
 
         //Log.d("NotificationCast", "Removing cast notification for ${sbn.packageName} (ID: $castId)")
 

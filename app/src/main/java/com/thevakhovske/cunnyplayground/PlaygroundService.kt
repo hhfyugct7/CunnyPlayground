@@ -226,7 +226,7 @@ class PlaygroundService : Service() {
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
-            intent.getParcelableExtraSafe("small_icon_obj", android.graphics.drawable.Icon::class.java)
+            NotificationCastListener.activeSmallIcons[notificationId] ?: intent.getParcelableExtraSafe("small_icon_obj", android.graphics.drawable.Icon::class.java)
         } else null 
         val sourceApp = intent.getStringExtra("source_app")
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
@@ -238,10 +238,10 @@ class PlaygroundService : Service() {
         val targetChannel = if (castMode == "hyperisland") HYPER_CHANNEL_ID else CHANNEL_ID
 
         val largeIconObj = if (Build.VERSION.SDK_INT >= 23) {
-            intent.getParcelableExtraSafe("large_icon_obj", android.graphics.drawable.Icon::class.java)
+            NotificationCastListener.activeLargeIcons[notificationId] ?: intent.getParcelableExtraSafe("large_icon_obj", android.graphics.drawable.Icon::class.java)
         } else null
-        val largeIconBitmap = intent.getParcelableExtraSafe("large_icon_bitmap", android.graphics.Bitmap::class.java)
-        val sourceRv = intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
+        val largeIconBitmap = NotificationCastListener.activeLargeBitmaps[notificationId] ?: intent.getParcelableExtraSafe("large_icon_bitmap", android.graphics.Bitmap::class.java)
+        val sourceRv = NotificationCastListener.activeRemoteViews[notificationId] ?: intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
         val segmentsCount = intent.getIntExtra("progress_segments", 0)
 
         activeIds.add(notificationId)
@@ -585,7 +585,7 @@ class PlaygroundService : Service() {
 
                     if (isMiuiGlobalBuild) {
                         // inject original remoteview (from preliminary impl)
-                        val sourceRv = intent.getParcelableExtra<RemoteViews>("miui_rv")
+                        val sourceRv = NotificationCastListener.activeRemoteViews[notificationId] ?: intent.getParcelableExtra<RemoteViews>("miui_rv")
                         if (sourceRv != null) {
                             val wrappedRv = RemoteViews(packageName, R.layout.focus_rv_wrapper)
                             wrappedRv.removeAllViews(R.id.rv_wrapper_container)
@@ -705,8 +705,8 @@ class PlaygroundService : Service() {
 
             // Large icon (source big icon) for richer base / info / nav / short artwork.
             val largeIcon: Icon? = run {
-                val obj = if (Build.VERSION.SDK_INT >= 23) intent.getParcelableExtraSafe("large_icon_obj", Icon::class.java) else null
-                obj ?: intent.getParcelableExtraSafe("large_icon_bitmap", Bitmap::class.java)?.let { iconFromBitmapCapped(it) }
+                val obj = if (Build.VERSION.SDK_INT >= 23) (NotificationCastListener.activeLargeIcons[notificationId] ?: intent.getParcelableExtraSafe("large_icon_obj", Icon::class.java)) else null
+                obj ?: (NotificationCastListener.activeLargeBitmaps[notificationId] ?: intent.getParcelableExtraSafe("large_icon_bitmap", Bitmap::class.java))?.let { iconFromBitmapCapped(it) }
             }
 
             // Notification action buttons → OriginIsland clickable surfaces (capsule/island/card/images).
@@ -731,7 +731,7 @@ class PlaygroundService : Service() {
             // Only the buttons template (8) is used for 2+ actions — but ButtonsSuperXTemplate does NOT
             // wire a whole-card click, so 0–1 action notifications stay on a tappable template (the lone
             // action shows as the in-card chip) so tapping the card still opens the source app.
-            val sourceRv = intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
+            val sourceRv = NotificationCastListener.activeRemoteViews[notificationId] ?: intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
             val isOngoing = intent.getBooleanExtra("is_ongoing", false)
             val shouldGenerateLiveUpdate = sourceRv == null && (isOngoing || hasProgress)
 
@@ -832,7 +832,10 @@ class PlaygroundService : Service() {
                 wrappedRv.forceFullReapply()
                 wrappedRv
             } else if (shouldGenerateLiveUpdate) {
-                val rv = android.widget.RemoteViews(packageName, R.layout.layout_origin_live_update)
+                val flip = !(originRvToggle[notificationId] ?: false)
+                originRvToggle[notificationId] = flip
+                val layoutId = if (flip) R.layout.layout_origin_live_update else R.layout.layout_origin_live_update_alt
+                val rv = android.widget.RemoteViews(packageName, layoutId)
                 rv.forceFullReapply()
                 rv.setOnClickPendingIntent(R.id.live_update_container, clickResp)
                 rv.setTextViewText(R.id.live_update_title, title)

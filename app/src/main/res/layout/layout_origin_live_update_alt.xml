@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Byte-identical twin of layout_origin_live_update.xml. Posting alternates between the two so the relayed
+     custom template's layoutId changes every update, which forces OriginOS's CustomSuperXTemplate down
+     the full apply() branch (mOldRemoteViews.getLayoutId() != remoteViews.getLayoutId()) instead of
+     reapply() — the only way a nested live_update view actually re-inflates on update.
+     KEEP IN SYNC with layout_origin_live_update.xml. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/live_update_container"
     android:layout_width="match_parent"
