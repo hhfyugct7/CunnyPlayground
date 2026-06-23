@@ -64,6 +64,16 @@
 
         <service android:name=".CasinoService" />
 
+        <receiver
+            android:name=".MediaControlReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.thevakhovske.cunnyplayground.MEDIA_PLAY_PAUSE" />
+                <action android:name="com.thevakhovske.cunnyplayground.MEDIA_NEXT" />
+                <action android:name="com.thevakhovske.cunnyplayground.MEDIA_PREV" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

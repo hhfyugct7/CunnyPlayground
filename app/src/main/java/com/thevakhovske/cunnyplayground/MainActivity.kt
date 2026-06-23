@@ -976,6 +976,7 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
     var useAppIcon by remember { mutableStateOf(prefs.getBoolean("use_app_icon", false)) }
     var showProgressPercent by remember { mutableStateOf(prefs.getBoolean("show_progress_percentage", false)) }
     var limitChipText by remember { mutableStateOf(prefs.getBoolean("limit_chip_7char", false)) }
+    var castMediaSessions by remember { mutableStateOf(prefs.getBoolean("cast_media_sessions", false)) }
     var castMode by remember { mutableStateOf(prefs.getString("cast_mode", "live_updates") ?: "live_updates") }
 
     val pm = context.packageManager
@@ -1028,6 +1029,15 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                     },
                     title = stringResource(R.string.pref_cast_notifs),
                     summary = stringResource(R.string.pref_cast_notifs_summary)
+                )
+                SwitchPreference(
+                    checked = castMediaSessions,
+                    onCheckedChange = {
+                        castMediaSessions = it
+                        prefs.edit().putBoolean("cast_media_sessions", it).apply()
+                    },
+                    title = "Cast Media Sessions",
+                    summary = "Intercept media notifications and display an interactive music player"
                 )
                 SwitchPreference(
                     checked = useAppIcon,
@@ -1143,7 +1153,20 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                     title = stringResource(R.string.action_select_apps),
                     summary = if (enabledApps.size == 1) stringResource(R.string.summary_app_selected) else stringResource(R.string.summary_apps_selected, enabledApps.size),
                     onClick = {
-                        context.startActivity(Intent(context, AppPickerActivity::class.java))
+                        val intent = Intent(context, AppPickerActivity::class.java).apply {
+                            putExtra("pref_key", "cast_enabled_apps")
+                        }
+                        context.startActivity(intent)
+                    }
+                )
+                ArrowPreference(
+                    title = "Ignored Media Apps",
+                    summary = "Exclude specific apps from being casted as Media Players",
+                    onClick = {
+                        val intent = Intent(context, AppPickerActivity::class.java).apply {
+                            putExtra("pref_key", "cast_ignored_media_apps")
+                        }
+                        context.startActivity(intent)
                     }
                 )
             }

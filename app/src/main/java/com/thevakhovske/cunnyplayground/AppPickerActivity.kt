@@ -77,9 +77,11 @@ fun AppPickerScreen(onBack: () -> Unit) {
         debouncedQuery = searchQuery
     }
 
+    val prefKey = (context as? ComponentActivity)?.intent?.getStringExtra("pref_key") ?: "cast_enabled_apps"
+
     val selectedApps = remember {
         mutableStateListOf<String>().apply {
-            addAll(prefs.getStringSet("cast_enabled_apps", emptySet()) ?: emptySet())
+            addAll(prefs.getStringSet(prefKey, emptySet()) ?: emptySet())
         }
     }
 
@@ -179,7 +181,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                                         } else {
                                             selectedApps.add(app.packageName)
                                         }
-                                        prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                        prefs.edit().putStringSet(prefKey, selectedApps.toSet()).apply()
                                         context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
                                     }
                                 )
@@ -190,7 +192,7 @@ fun AppPickerScreen(onBack: () -> Unit) {
                                 } else {
                                     selectedApps.add(app.packageName)
                                 }
-                                prefs.edit().putStringSet("cast_enabled_apps", selectedApps.toSet()).apply()
+                                prefs.edit().putStringSet(prefKey, selectedApps.toSet()).apply()
                                 context.sendBroadcast(android.content.Intent("com.thevakhovske.cunnyplayground.RELOAD_NOTIFICATIONS"))
                             }
                         )

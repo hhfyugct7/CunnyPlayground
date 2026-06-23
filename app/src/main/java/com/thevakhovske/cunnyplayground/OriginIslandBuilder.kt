@@ -256,7 +256,9 @@ object OriginIslandBuilder {
         leftDoubleLine: List<String> = emptyList(),
         rightDoubleLine: List<String> = emptyList(),
         buttonTitles: List<String> = emptyList(),
-        customTemplate: android.widget.RemoteViews? = null
+        customTemplate: android.widget.RemoteViews? = null,
+        waveState: Int = 1,
+        waveColorList: List<String>? = null
     ): Bundle {
         val bundle = Bundle()
         bundle.putInt(BUNDLE_KEY_OPERATION, operation)
@@ -464,13 +466,14 @@ object OriginIslandBuilder {
         val rightBundle = Bundle()
         when (rightTemplate) {
             TEMPLATE_RIGHT_ISLAND_WAVE -> {
-                // 1: Wave (no resources; first color main, second accent). Skip color → system default.
-                if (!isDefaultColor(fgColor)) {
+                if (waveColorList != null && waveColorList.isNotEmpty()) {
+                    rightBundle.putStringArrayList(BUNDLE_KEY_ISLAND_RIGHT_WAVE_COLOR, ArrayList(waveColorList))
+                } else if (!isDefaultColor(fgColor)) {
                     val colors = ArrayList<String>()
                     colors.add(String.format("#%06X", 0xFFFFFF and fgColor))
                     rightBundle.putStringArrayList(BUNDLE_KEY_ISLAND_RIGHT_WAVE_COLOR, colors)
                 }
-                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_WAVE_STATE, 1)
+                rightBundle.putInt(BUNDLE_KEY_ISLAND_RIGHT_WAVE_STATE, waveState)
             }
             TEMPLATE_RIGHT_ISLAND_PROGRESS -> {
                 // 2: Progress ring. Always give it a visible color (a default-themed ring can come out

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/media_player_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#00000000"
+    android:padding="16dp">
+
+    <!-- Album Art (Top Left) -->
+    <ImageView
+        android:id="@+id/media_album_art"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:scaleType="centerCrop"
+        android:background="@drawable/bg_origin_chip"
+        android:clipToOutline="true" />
+
+    <!-- Track Title & Artist (Right of Album Art) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/media_album_art"
+        android:layout_alignTop="@id/media_album_art"
+        android:layout_alignBottom="@id/media_album_art"
+        android:layout_marginStart="16dp"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/media_track_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever" />
+
+        <TextView
+            android:id="@+id/media_artist_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#B3FFFFFF"
+            android:textSize="15sp"
+            android:layout_marginTop="2dp"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Progress Bar Section (Below Album Art & Text) -->
+    <RelativeLayout
+        android:id="@+id/media_progress_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/media_album_art"
+        android:layout_marginTop="20dp">
+
+        <TextView
+            android:id="@+id/media_time_current"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:textColor="#B3FFFFFF"
+            android:textSize="12sp" />
+
+        <ProgressBar
+            android:id="@+id/media_progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_toEndOf="@id/media_time_current"
+            android:layout_toStartOf="@+id/media_time_total"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:progressTint="#FFFFFF"
+            android:progressBackgroundTint="#40FFFFFF" />
+
+        <TextView
+            android:id="@+id/media_time_total"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:textColor="#B3FFFFFF"
+            android:textSize="12sp" />
+    </RelativeLayout>
+
+    <!-- Controls Section (Below Progress Bar) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/media_progress_container"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="4dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <ImageButton
+            android:id="@+id/media_btn_prev"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_media_previous"
+            android:tint="#FFFFFF"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:layout_marginEnd="32dp" />
+
+        <ImageButton
+            android:id="@+id/media_btn_play_pause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_media_play"
+            android:tint="#FFFFFF"
+            android:scaleType="fitCenter"
+            android:padding="4dp" />
+
+        <ImageButton
+            android:id="@+id/media_btn_next"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_media_next"
+            android:tint="#FFFFFF"
+            android:scaleType="fitCenter"
+            android:padding="8dp"
+            android:layout_marginStart="32dp" />
+    </LinearLayout>
+
+</RelativeLayout>

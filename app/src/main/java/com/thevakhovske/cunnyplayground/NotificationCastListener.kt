@@ -26,12 +26,22 @@ class NotificationCastListener : NotificationListenerService() {
         override fun run() {
             try {
                 val prefs = getSharedPreferences("experimental_prefs", Context.MODE_PRIVATE)
-                if (prefs.getBoolean("cast_notifications", false)) {
-                    activeNotifications?.forEach { sbn ->
-                        if (sbn.isOngoing && sbn.notification.extras.getBoolean("android.showChronometer", false)) {
-                            // Re-process to update the chronometer string for OriginIsland Capsule
-                            onNotificationPosted(sbn)
+                val isCastingEnabled = prefs.getBoolean("cast_notifications", false)
+                val isMediaCastingEnabled = prefs.getBoolean("cast_media_sessions", false)
+                val ignoredMediaApps = prefs.getStringSet("cast_ignored_media_apps", emptySet()) ?: emptySet()
+
+                activeNotifications?.forEach { sbn ->
+                    val extras = sbn.notification.extras
+                    val mediaSession = extras.getParcelable<android.media.session.MediaSession.Token>("android.mediaSession")
+                    
+                    if (mediaSession != null) {
+                        if (isMediaCastingEnabled && !ignoredMediaApps.contains(sbn.packageName)) {
+                            // Re-process to update the chronometer/progress bar
+                            processMediaNotification(sbn, mediaSession)
                         }
+                    } else if (isCastingEnabled && sbn.isOngoing && extras.getBoolean("android.showChronometer", false)) {
+                        // Re-process regular ongoing notifications with chronometer
+                        onNotificationPosted(sbn)
                     }
                 }
             } catch (e: Exception) {}
@@ -692,6 +702,98 @@ class NotificationCastListener : NotificationListenerService() {
         val intent = Intent(this, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_CANCEL
             putExtra("id", castId)
+        }
+        startService(intent)
+    }
+
+    private fun processMediaNotification(sbn: StatusBarNotification, sessionToken: android.media.session.MediaSession.Token) {
+        val controller = android.media.session.MediaController(this, sessionToken)
+        val metadata = controller.metadata
+        val playbackState = controller.playbackState
+
+        val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: sbn.notification.extras.getString("android.title") ?: "Unknown"
+        val artist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: sbn.notification.extras.getString("android.text") ?: "Unknown"
+        
+        val durationMs = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+        val positionMs = playbackState?.position ?: 0L
+        val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+
+        val rv = android.widget.RemoteViews(packageName, R.layout.layout_origin_media_player)
+        rv.setTextViewText(R.id.media_track_title, title)
+        rv.setTextViewText(R.id.media_artist_name, artist)
+        
+        fun formatTime(ms: Long): String {
+            val totalSeconds = ms / 1000
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            return String.format("%02d:%02d", minutes, seconds)
+        }
+
+        rv.setTextViewText(R.id.media_time_current, formatTime(positionMs))
+        rv.setTextViewText(R.id.media_time_total, formatTime(durationMs))
+        if (durationMs > 0) {
+            rv.setProgressBar(R.id.media_progress_bar, durationMs.toInt(), positionMs.toInt(), false)
+        } else {
+            rv.setProgressBar(R.id.media_progress_bar, 100, 0, false)
+        }
+        
+        var waveColor = android.graphics.Color.WHITE
+        val albumArtBitmap = metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: sbn.notification.extras.getParcelable<android.graphics.Bitmap>("android.picture")
+            ?: sbn.notification.extras.getParcelable<android.graphics.Bitmap>("android.largeIcon")
+        
+        if (albumArtBitmap != null) {
+            rv.setImageViewBitmap(R.id.media_album_art, albumArtBitmap)
+            try {
+                val palette = androidx.palette.graphics.Palette.from(albumArtBitmap).generate()
+                waveColor = palette.getVibrantColor(palette.getDominantColor(android.graphics.Color.WHITE))
+            } catch (e: Exception) {
+                Log.e("NotificationCast", "Palette extraction failed", e)
+            }
+        }
+        
+        val createPi = { action: String ->
+            android.app.PendingIntent.getBroadcast(
+                this, action.hashCode(),
+                android.content.Intent(this, MediaControlReceiver::class.java).apply {
+                    this.action = action
+                    putExtra(MediaControlReceiver.EXTRA_TOKEN, sessionToken)
+                },
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        
+        rv.setOnClickPendingIntent(R.id.media_btn_play_pause, createPi(MediaControlReceiver.ACTION_PLAY_PAUSE))
+        rv.setOnClickPendingIntent(R.id.media_btn_next, createPi(MediaControlReceiver.ACTION_NEXT))
+        rv.setOnClickPendingIntent(R.id.media_btn_prev, createPi(MediaControlReceiver.ACTION_PREV))
+        
+        rv.setImageViewResource(R.id.media_btn_play_pause, if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+        
+        val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
+        val intent = android.content.Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_START
+            putExtra("id", castId)
+            putExtra("cast_mode", "originisland")
+            putExtra("oi_template", 7)
+            putExtra("oi_custom_template", rv)
+            putExtra("oi_right_template", 1)
+            putExtra("oi_wave_state", if (isPlaying) 1 else 0)
+            
+            // Set Album Art as the small icon object to show up in the capsule
+            if (albumArtBitmap != null) {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    putExtra("small_icon_obj", android.graphics.drawable.Icon.createWithBitmap(albumArtBitmap))
+                }
+            }
+            
+            val colors = java.util.ArrayList<String>()
+            colors.add(String.format("#%06X", 0xFFFFFF and waveColor))
+            putStringArrayListExtra("oi_wave_color", colors)
+            
+            putExtra("source_pkg", sbn.packageName)
+            putExtra("title", title)
+            putExtra("text", artist)
+            putExtra("status_chip_text", artist)
         }
         startService(intent)
     }

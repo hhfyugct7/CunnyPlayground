@@ -808,6 +808,9 @@ class PlaygroundService : Service() {
             )
 
             val explicitCustomTemplate = intent.getParcelableExtra<android.widget.RemoteViews>("oi_custom_template")
+            val waveState = intent.getIntExtra("oi_wave_state", 1)
+            val waveColorList = intent.getStringArrayListExtra("oi_wave_color")
+
             val customTemplate = if (sourceRv != null) {
                 val wrappedRv = android.widget.RemoteViews(packageName, R.layout.focus_rv_wrapper)
                 wrappedRv.removeAllViews(R.id.rv_wrapper_container)
@@ -955,7 +958,9 @@ class PlaygroundService : Service() {
                 leftDoubleLine = leftDoubleLine,
                 rightDoubleLine = rightDoubleLine,
                 buttonTitles = buttonTitles,
-                customTemplate = customTemplate
+                customTemplate = customTemplate,
+                waveState = waveState,
+                waveColorList = waveColorList
             )
 
             // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
