@@ -19,9 +19,48 @@ import java.io.File
 import java.io.FileOutputStream
 
 class NotificationCastListener : NotificationListenerService() {
+
+    companion object {
+        val activeControllers = HashMap<Int, android.media.session.MediaController>()
+    }
     
     private val lastNotificationContent = HashMap<Int, String>()
+    // sbn.key -> layout parity, flipped each poll so the media RemoteViews alternates its layoutId and
+    // OriginOS fully re-applies it (seekbar / play-state actually refresh). Keyed per session so two
+    // simultaneous players each alternate independently.
+    private val mediaRvFlip = HashMap<String, Boolean>()
+    private val mediaCallbacks = HashMap<String, Pair<android.media.session.MediaController, android.media.session.MediaController.Callback>>()
     private val pollHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun <T : android.os.Parcelable> android.os.Bundle.getParcelableSafe(key: String, clazz: Class<T>): T? {
+        return if (Build.VERSION.SDK_INT >= 33) {
+            this.getParcelable(key, clazz)
+        } else {
+            @Suppress("DEPRECATION")
+            this.getParcelable(key) as? T
+        }
+    }
+
+    private fun getComplexity(rv: RemoteViews?): Int {
+        if (rv == null) return -1
+        return try {
+            val field = rv.javaClass.getDeclaredField("mActions")
+            field.isAccessible = true
+            (field.get(rv) as? List<*>)?.size ?: 0
+        } catch (e: Throwable) {
+            0
+        }
+    }
+
+    private fun getComplexRemoteViews(notification: Notification): RemoteViews? {
+        val options = listOfNotNull(
+            notification.bigContentView,
+            notification.headsUpContentView,
+            notification.contentView
+        )
+        return options.maxByOrNull { getComplexity(it) }
+    }
+
     private val pollRunnable = object : Runnable {
         override fun run() {
             try {
@@ -32,19 +71,25 @@ class NotificationCastListener : NotificationListenerService() {
 
                 activeNotifications?.forEach { sbn ->
                     val extras = sbn.notification.extras
-                    val mediaSession = extras.getParcelable<android.media.session.MediaSession.Token>("android.mediaSession")
+                    val mediaSession = extras.getParcelableSafe("android.mediaSession", android.media.session.MediaSession.Token::class.java)
                     
                     if (mediaSession != null) {
                         if (isMediaCastingEnabled && !ignoredMediaApps.contains(sbn.packageName)) {
-                            // Re-process to update the chronometer/progress bar
-                            processMediaNotification(sbn, mediaSession)
+                            // Only poll/process if the controller is actively playing to save battery
+                            val controller = mediaCallbacks[sbn.key]?.first
+                            val isPlaying = controller?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+                            if (isPlaying) {
+                                processMediaNotification(sbn, mediaSession)
+                            }
                         }
                     } else if (isCastingEnabled && sbn.isOngoing && extras.getBoolean("android.showChronometer", false)) {
                         // Re-process regular ongoing notifications with chronometer
                         onNotificationPosted(sbn)
                     }
                 }
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                Log.e("NotificationCast", "Error in pollRunnable", e)
+            }
             pollHandler.postDelayed(this, 1000)
         }
     }
@@ -137,7 +182,7 @@ class NotificationCastListener : NotificationListenerService() {
         val extras = sbn.notification.extras
         
         // --- MEDIA SESSION INTERCEPTION ---
-        val mediaSession = extras.getParcelable<android.media.session.MediaSession.Token>("android.mediaSession")
+        val mediaSession = extras.getParcelableSafe("android.mediaSession", android.media.session.MediaSession.Token::class.java)
         val template = extras.getString("android.template")
         val isMediaTemplate = template == "android.app.Notification\$MediaStyle"
         
@@ -164,22 +209,12 @@ class NotificationCastListener : NotificationListenerService() {
         val subTextExtra = extras.getCharSequence("android.subText")
 
         val rawTitle = titleExtra?.toString()?.trim() ?: ""
-        val rawText = textExtra?.toString()?.trim() ?: sbn.packageName
+        val rawText = textExtra?.toString()?.trim() ?: ""
         val rawSubText = subTextExtra?.toString()?.trim() ?: ""
 
-        if (rawTitle.isEmpty() && rawText.isEmpty()) {
-            //Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (no title/text)")
-            return
-        }
-
-        // Edge case: if title or text is exactly the package name, ignore
-        val pkg = sbn.packageName
-        if (rawTitle.equals(pkg, ignoreCase = true) || rawText.equals(pkg, ignoreCase = true)) {
-            //Log.d("NotificationCast", "Skipping notification from $pkg (content matches package name)")
-            return
-        }
-
-        // Final values for casting (ensure title is never empty for the builder)
+        // Intercept regardless of empty or package-name-matching content (previously these were
+        // skipped, dropping otherwise-valid notifications). Substitute a sane title and allow empty
+        // text: title falls back to "Notification", text stays "" when blank.
         val finalTitle = if (rawTitle.isEmpty()) "Notification" else rawTitle
         val finalText = rawText
 
@@ -202,9 +237,7 @@ class NotificationCastListener : NotificationListenerService() {
 
         // Render and Save Notification Preview
         try {
-            val remoteViews = sbn.notification.bigContentView 
-                ?: sbn.notification.contentView 
-            
+            val remoteViews = getComplexRemoteViews(sbn.notification)
             if (remoteViews != null) {
                 val bitmap = renderRemoteViewsToBitmap(remoteViews)
                 if (bitmap != null) {
@@ -418,20 +451,7 @@ class NotificationCastListener : NotificationListenerService() {
         // Unique ID for this cast
         val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
 
-        // Deduping: Generate a key based on content that effects the UI
-        val actionTitles = actionsList?.joinToString { it.title?.toString() ?: "" } ?: ""
-        // Also append sbn.postTime to ensure genuine app updates (like RemoteViews changes) are not dropped
-        val contentKey = "T:$finalTitle|X:$finalText|C:$processedChipText|L:$hyperLeftText|M:$hyperMainText|OL:$originLeftText|OR:$originRightText|OT:$originTemplate/$originRightTemplate|P:$progress/$progressMax/$isIndeterminate|A:$actionTitles|PT:${sbn.postTime}"
-        
-        if (castMode == "hyperisland") {
-            //Log.d("HyperIsland", "Extracted -> Left: '$hyperLeftText', Main: '$hyperMainText' [Key: $contentKey]")
-        }
-
-        if (lastNotificationContent[castId] == contentKey) {
-            // //Log.d("NotificationCast", "Skipping redundant update for $sourceApp ($pkg)")
-            return
-        }
-        lastNotificationContent[castId] = contentKey
+        // Bypassing deduplication completely to ensure 100% reliable updates on any notification change.
 
         // Forward to PlaygroundService
         val intent = Intent(this, PlaygroundService::class.java).apply {
@@ -505,7 +525,7 @@ class NotificationCastListener : NotificationListenerService() {
             sbn.notification.contentIntent?.let { putExtra("source_content_intent", it) }
 
             // Pass original RemoteViews for miui.focus.rv injection
-            val sourceRv = sbn.notification.bigContentView ?: sbn.notification.contentView
+            val sourceRv = getComplexRemoteViews(sbn.notification)
             if (sourceRv != null) {
                 putExtra("miui_rv", sourceRv)
             }
@@ -712,6 +732,14 @@ class NotificationCastListener : NotificationListenerService() {
         // Clear deduping cache
         lastNotificationContent.remove(castId)
 
+        // Clean up media callbacks and controllers
+        mediaCallbacks.remove(sbn.key)?.let { (oldController, oldCallback) ->
+            try {
+                oldController.unregisterCallback(oldCallback)
+            } catch (e: Exception) {}
+        }
+        activeControllers.remove(castId)
+
         //Log.d("NotificationCast", "Removing cast notification for ${sbn.packageName} (ID: $castId)")
 
         // Send cancel action to PlaygroundService
@@ -723,12 +751,47 @@ class NotificationCastListener : NotificationListenerService() {
     }
 
     private fun processMediaNotification(sbn: StatusBarNotification, sessionToken: android.media.session.MediaSession.Token) {
-        val controller = android.media.session.MediaController(this, sessionToken)
-        val metadata = controller.metadata
-        val playbackState = controller.playbackState
+      val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
+      try {
+        var controller = mediaCallbacks[sbn.key]?.first
+        if (controller == null || controller.sessionToken != sessionToken) {
+            mediaCallbacks[sbn.key]?.let { (oldController, oldCallback) ->
+                try {
+                    oldController.unregisterCallback(oldCallback)
+                } catch (e: Exception) {}
+            }
+            try {
+                val newController = android.media.session.MediaController(this, sessionToken)
+                val callback = object : android.media.session.MediaController.Callback() {
+                    override fun onPlaybackStateChanged(state: android.media.session.PlaybackState?) {
+                        Log.d("MediaCast", "Callback onPlaybackStateChanged state=${state?.state}")
+                        processMediaNotification(sbn, sessionToken)
+                    }
+                    override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
+                        Log.d("MediaCast", "Callback onMetadataChanged")
+                        processMediaNotification(sbn, sessionToken)
+                    }
+                }
+                newController.registerCallback(callback, pollHandler)
+                mediaCallbacks[sbn.key] = Pair(newController, callback)
+                controller = newController
+            } catch (e: Exception) {
+                Log.e("NotificationCast", "Failed to create/register MediaController", e)
+            }
+        }
 
-        val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: sbn.notification.extras.getString("android.title") ?: "Unknown"
-        val artist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: sbn.notification.extras.getString("android.text") ?: "Unknown"
+        val activeController = controller ?: android.media.session.MediaController(this, sessionToken)
+        activeControllers[castId] = activeController
+
+        val metadata = activeController.metadata
+        val playbackState = activeController.playbackState
+
+        val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
+            ?: sbn.notification.extras.getCharSequence("android.title")?.toString()
+            ?: "Unknown"
+        val artist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST)
+            ?: sbn.notification.extras.getCharSequence("android.text")?.toString()
+            ?: "Unknown"
         
         val durationMs = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
         val isPlaying = playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
@@ -741,7 +804,29 @@ class NotificationCastListener : NotificationListenerService() {
             playbackState?.position ?: 0L
         }
 
-        val rv = android.widget.RemoteViews(packageName, R.layout.layout_origin_media_player)
+        // Diagnostic: confirms the 1s poll is firing and what live state it reads each tick. If pos/state
+        // advance here but the card doesn't, the freeze is render-side; if this stops logging, the poll died.
+        Log.d("MediaCast", "tick pkg=${sbn.packageName} state=${playbackState?.state} playing=$isPlaying pos=${positionMs}ms/${durationMs}ms")
+
+        // Alternate the layoutId every tick so OriginOS fully re-applies the card (not reapply()),
+        // guaranteeing the seekbar and play/pause icon refresh.
+        val mediaFlip = !(mediaRvFlip[sbn.key] ?: false)
+        mediaRvFlip[sbn.key] = mediaFlip
+        val mediaLayout = if (mediaFlip) R.layout.layout_origin_media_player else R.layout.layout_origin_media_player_alt
+        val rv = android.widget.RemoteViews(packageName, mediaLayout)
+        // OriginOS only does a full re-apply of a custom SuperX template (template 7) when the PREVIOUS
+        // RemoteViews carried FLAG_REAPPLY_DISALLOWED — see CustomSuperXTemplate.loadContentForRemoteViews,
+        // which otherwise calls reapply() that no-ops on our card and freezes the seekbar/play-state.
+        // Setting the flag on every frame forces the full apply() path each poll, exactly like OriginOS
+        // does for its own live notifications (createBigContentView().addFlags(1)). addFlags()/
+        // FLAG_REAPPLY_DISALLOWED are @hide in the public SDK, so set it reflectively (value 1).
+        try {
+            android.widget.RemoteViews::class.java
+                .getMethod("addFlags", Int::class.javaPrimitiveType)
+                .invoke(rv, 1)
+        } catch (e: Throwable) {
+            Log.w("NotificationCast", "RemoteViews.addFlags(FLAG_REAPPLY_DISALLOWED) unavailable", e)
+        }
         rv.setTextViewText(R.id.media_track_title, title)
         rv.setTextViewText(R.id.media_artist_name, artist)
         
@@ -760,47 +845,87 @@ class NotificationCastListener : NotificationListenerService() {
             rv.setProgressBar(R.id.media_progress_bar, 100, 0, false)
         }
         
-        var waveColor = android.graphics.Color.WHITE
+        var waveColor = android.graphics.Color.parseColor("#3083F0")
         val rawAlbumArt = metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
-            ?: sbn.notification.extras.getParcelable<android.graphics.Bitmap>("android.picture")
-            ?: sbn.notification.extras.getParcelable<android.graphics.Bitmap>("android.largeIcon")
-        
-        var safeAlbumArt = rawAlbumArt
-        if (rawAlbumArt != null) {
+            ?: metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+            ?: metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+            ?: sbn.notification.extras.getParcelableSafe("android.picture", android.graphics.Bitmap::class.java)
+            ?: sbn.notification.extras.getParcelableSafe("android.largeIcon", android.graphics.Bitmap::class.java)
+
+        // Only accept a real, non-empty bitmap; anything else → placeholder (a missing/invalid/0-size
+        // or hardware bitmap otherwise crashes when the RemoteViews is applied in the system process).
+        var safeAlbumArt: android.graphics.Bitmap? = null
+        if (rawAlbumArt != null && !rawAlbumArt.isRecycled && rawAlbumArt.width > 0 && rawAlbumArt.height > 0) {
             try {
-                val maxDimen = Math.max(rawAlbumArt.width, rawAlbumArt.height)
+                var bmp = rawAlbumArt
+                // Hardware bitmaps can't be read back / parceled into a RemoteViews — software-copy first.
+                if (bmp.config == android.graphics.Bitmap.Config.HARDWARE) {
+                    bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                }
+                val maxDimen = Math.max(bmp.width, bmp.height)
                 if (maxDimen > 256) {
                     val scale = 256f / maxDimen
-                    val newW = (rawAlbumArt.width * scale).toInt().coerceAtLeast(1)
-                    val newH = (rawAlbumArt.height * scale).toInt().coerceAtLeast(1)
-                    safeAlbumArt = android.graphics.Bitmap.createScaledBitmap(rawAlbumArt, newW, newH, true)
+                    bmp = android.graphics.Bitmap.createScaledBitmap(
+                        bmp, (bmp.width * scale).toInt().coerceAtLeast(1), (bmp.height * scale).toInt().coerceAtLeast(1), true
+                    )
                 }
-                
-                // Hardware bitmaps cause Palette.from to crash, convert it safely
-                if (safeAlbumArt != null && safeAlbumArt.config == android.graphics.Bitmap.Config.HARDWARE) {
-                    safeAlbumArt = safeAlbumArt.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                // Normalize any remaining odd/unknown config (RGB_565, RGBA_F16, null) to a clean
+                // ARGB_8888 copy so neither our process nor OriginOS chokes when applying the RemoteViews.
+                if (bmp.config != android.graphics.Bitmap.Config.ARGB_8888) {
+                    bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
                 }
-            } catch (e: Exception) {
+                safeAlbumArt = if (!bmp.isRecycled && bmp.width > 0 && bmp.height > 0) bmp else null
+            } catch (e: Throwable) {
                 Log.e("NotificationCast", "Failed to scale/convert album art", e)
                 safeAlbumArt = null
             }
         }
-        
-        if (safeAlbumArt != null) {
-            rv.setImageViewBitmap(R.id.media_album_art, safeAlbumArt)
-            try {
-                val palette = androidx.palette.graphics.Palette.from(safeAlbumArt).generate()
-                waveColor = palette.getVibrantColor(palette.getDominantColor(android.graphics.Color.WHITE))
-            } catch (e: Exception) {
-                Log.e("NotificationCast", "Palette extraction failed", e)
+
+        // Missing/weird cover → replace with the placeholder cover, rasterized to a real bitmap so it
+        // is used uniformly for the card image AND the capsule icon (not just a card-only resource).
+        val hasRealArt = safeAlbumArt != null
+        if (safeAlbumArt == null) {
+            safeAlbumArt = try {
+                androidx.core.content.ContextCompat.getDrawable(this, R.drawable.ic_media_placeholder)
+                    ?.toBitmap(256, 256)
+            } catch (e: Throwable) {
+                Log.e("NotificationCast", "Placeholder cover render failed", e)
+                null
             }
         }
-        
+        val cover = safeAlbumArt
+        if (cover != null) {
+            rv.setImageViewBitmap(R.id.media_album_art, cover)
+            // Only derive the accent from a real cover; the neutral placeholder keeps the default blue.
+            if (hasRealArt) {
+                try {
+                    val palette = androidx.palette.graphics.Palette.from(cover).generate()
+                    waveColor = palette.getVibrantColor(palette.getDominantColor(waveColor))
+                } catch (e: Exception) {
+                    Log.e("NotificationCast", "Palette extraction failed", e)
+                }
+            }
+        } else {
+            rv.setImageViewResource(R.id.media_album_art, R.drawable.ic_media_placeholder)
+        }
+
+        // Tie the scrubber fill to the album-art accent (Apple Music-style). setColorStateList(...,
+        // "setProgressTintList", ...) is API 31+; minSdk here is 36, but guard anyway.
+        try {
+            rv.setColorStateList(
+                R.id.media_progress_bar, "setProgressTintList",
+                android.content.res.ColorStateList.valueOf(waveColor)
+            )
+        } catch (e: Throwable) {
+            Log.w("NotificationCast", "progress tint unavailable", e)
+        }
+
         val createPi = { action: String ->
             android.app.PendingIntent.getBroadcast(
                 this, action.hashCode(),
                 android.content.Intent(this, MediaControlReceiver::class.java).apply {
                     this.action = action
+                    putExtra("cast_id", castId)
                     putExtra(MediaControlReceiver.EXTRA_TOKEN, sessionToken)
                 },
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
@@ -811,9 +936,8 @@ class NotificationCastListener : NotificationListenerService() {
         rv.setOnClickPendingIntent(R.id.media_btn_next, createPi(MediaControlReceiver.ACTION_NEXT))
         rv.setOnClickPendingIntent(R.id.media_btn_prev, createPi(MediaControlReceiver.ACTION_PREV))
         
-        rv.setImageViewResource(R.id.media_btn_play_pause, if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
+        rv.setImageViewResource(R.id.media_btn_play_pause, if (isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play)
         
-        val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
         val intent = android.content.Intent(this, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
             putExtra("id", castId)
@@ -823,12 +947,10 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("oi_right_template", 1)
             putExtra("oi_wave_state", if (isPlaying) 1 else 0)
             
-            // Set Album Art as the small icon object to show up in the capsule
-            if (safeAlbumArt != null) {
-                if (Build.VERSION.SDK_INT >= 23) {
-                    val capsuleIcon = android.graphics.Bitmap.createScaledBitmap(safeAlbumArt, 64, 64, true)
-                    putExtra("small_icon_obj", android.graphics.drawable.Icon.createWithBitmap(capsuleIcon))
-                }
+            // Capsule icon: the album cover, or the placeholder cover when art is missing/invalid.
+            if (cover != null && Build.VERSION.SDK_INT >= 23) {
+                val capsuleIcon = android.graphics.Bitmap.createScaledBitmap(cover, 64, 64, true)
+                putExtra("small_icon_obj", android.graphics.drawable.Icon.createWithBitmap(capsuleIcon))
             }
             
             // This is CRITICAL: PlaygroundService deduplicates intents based on extra hash.
@@ -846,5 +968,8 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("status_chip_text", artist)
         }
         startService(intent)
+      } catch (e: Throwable) {
+        Log.e("NotificationCast", "processMediaNotification failed; skipping this frame", e)
+      }
     }
 }

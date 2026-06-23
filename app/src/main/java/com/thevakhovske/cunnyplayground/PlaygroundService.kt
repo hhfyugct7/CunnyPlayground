@@ -40,6 +40,12 @@ class PlaygroundService : Service() {
     private val activeIds = mutableSetOf<Int>()
     // notificationId -> SuperX scene, for OriginIsland notifications that need an explicit "end".
     private val originScenes = HashMap<Int, String>()
+    // notificationId -> monotonically increasing changedRecord so OriginOS accepts each update.
+    private val originChangeRecord = HashMap<Int, Int>()
+    // notificationId -> parity flag, flipped each post so the relayed custom template alternates its
+    // layoutId. That forces OriginOS to fully re-inflate (apply, not reapply) so a nested addView()
+    // source RemoteViews actually refreshes its live internals every update.
+    private val originRvToggle = HashMap<Int, Boolean>()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isForegroundActive = false
     private lateinit var notificationManager: NotificationManager
@@ -100,6 +106,8 @@ class PlaygroundService : Service() {
                 val hadOrigins = originScenes.isNotEmpty()
                 HashMap(originScenes).forEach { (id, scene) -> endOrigin(id, scene) }
                 originScenes.clear()
+                originChangeRecord.clear()
+                originRvToggle.clear()
                 val toCancel = activeIds.toList()
                 activeIds.clear()
                 val tearDown = {
@@ -133,6 +141,8 @@ class PlaygroundService : Service() {
             notificationManager.cancel(id)
         }
         activeIds.remove(id)
+        originChangeRecord.remove(id)
+        originRvToggle.remove(id)
     }
 
     /**
@@ -216,7 +226,7 @@ class PlaygroundService : Service() {
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
-            intent.getParcelableExtra<android.graphics.drawable.Icon>("small_icon_obj")
+            intent.getParcelableExtraSafe("small_icon_obj", android.graphics.drawable.Icon::class.java)
         } else null 
         val sourceApp = intent.getStringExtra("source_app")
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
@@ -228,10 +238,10 @@ class PlaygroundService : Service() {
         val targetChannel = if (castMode == "hyperisland") HYPER_CHANNEL_ID else CHANNEL_ID
 
         val largeIconObj = if (Build.VERSION.SDK_INT >= 23) {
-            intent.getParcelableExtra<android.graphics.drawable.Icon>("large_icon_obj")
+            intent.getParcelableExtraSafe("large_icon_obj", android.graphics.drawable.Icon::class.java)
         } else null
-        val largeIconBitmap = intent.getParcelableExtra<android.graphics.Bitmap>("large_icon_bitmap")
-        val sourceRv = intent.getParcelableExtra<android.widget.RemoteViews>("miui_rv")
+        val largeIconBitmap = intent.getParcelableExtraSafe("large_icon_bitmap", android.graphics.Bitmap::class.java)
+        val sourceRv = intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
         val segmentsCount = intent.getIntExtra("progress_segments", 0)
 
         activeIds.add(notificationId)
@@ -695,8 +705,8 @@ class PlaygroundService : Service() {
 
             // Large icon (source big icon) for richer base / info / nav / short artwork.
             val largeIcon: Icon? = run {
-                val obj = if (Build.VERSION.SDK_INT >= 23) intent.getParcelableExtra<Icon>("large_icon_obj") else null
-                obj ?: intent.getParcelableExtra<Bitmap>("large_icon_bitmap")?.let { iconFromBitmapCapped(it) }
+                val obj = if (Build.VERSION.SDK_INT >= 23) intent.getParcelableExtraSafe("large_icon_obj", Icon::class.java) else null
+                obj ?: intent.getParcelableExtraSafe("large_icon_bitmap", Bitmap::class.java)?.let { iconFromBitmapCapped(it) }
             }
 
             // Notification action buttons → OriginIsland clickable surfaces (capsule/island/card/images).
@@ -721,7 +731,7 @@ class PlaygroundService : Service() {
             // Only the buttons template (8) is used for 2+ actions — but ButtonsSuperXTemplate does NOT
             // wire a whole-card click, so 0–1 action notifications stay on a tappable template (the lone
             // action shows as the in-card chip) so tapping the card still opens the source app.
-            val sourceRv = intent.getParcelableExtra<android.widget.RemoteViews>("miui_rv")
+            val sourceRv = intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
             val isOngoing = intent.getBooleanExtra("is_ongoing", false)
             val shouldGenerateLiveUpdate = sourceRv == null && (isOngoing || hasProgress)
 
@@ -792,12 +802,7 @@ class PlaygroundService : Service() {
             val rightDoubleLine = intent.getStringArrayListExtra("oi_right_doubleline") ?: arrayListOf()
             val buttonTitles = intent.getStringArrayListExtra("oi_button_titles") ?: arrayListOf()
             // Compute source click response early so we can attach it to custom views
-            val sourceClick = if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra("source_content_intent", PendingIntent::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra<PendingIntent>("source_content_intent")
-            }
+            val sourceClick = intent.getParcelableExtraSafe("source_content_intent", PendingIntent::class.java)
             val sourcePkg = intent.getStringExtra("source_pkg")
             val launch = (sourcePkg?.let { packageManager.getLaunchIntentForPackage(it) })
                 ?: packageManager.getLaunchIntentForPackage(packageName)
@@ -807,18 +812,28 @@ class PlaygroundService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            val explicitCustomTemplate = intent.getParcelableExtra<android.widget.RemoteViews>("oi_custom_template")
+            val explicitCustomTemplate = intent.getParcelableExtraSafe("oi_custom_template", android.widget.RemoteViews::class.java)
             val waveState = intent.getIntExtra("oi_wave_state", 1)
             val waveColorList = intent.getStringArrayListExtra("oi_wave_color")
 
             val customTemplate = if (sourceRv != null) {
-                val wrappedRv = android.widget.RemoteViews(packageName, R.layout.focus_rv_wrapper)
+                // Alternate the wrapper layoutId every post. OriginOS's CustomSuperXTemplate only does a
+                // full apply() (which re-runs our addView and re-inflates the fresh source RemoteViews)
+                // when the layoutId changes between updates; otherwise it calls reapply(), which skips
+                // addView and freezes the nested card. Flipping between two identical layouts guarantees
+                // the full-apply branch on every update — no hidden-API addFlags needed.
+                val flip = !(originRvToggle[notificationId] ?: false)
+                originRvToggle[notificationId] = flip
+                val wrapperLayout = if (flip) R.layout.focus_rv_wrapper else R.layout.focus_rv_wrapper_alt
+                val wrappedRv = android.widget.RemoteViews(packageName, wrapperLayout)
                 wrappedRv.removeAllViews(R.id.rv_wrapper_container)
                 wrappedRv.addView(R.id.rv_wrapper_container, sourceRv)
                 wrappedRv.setOnClickPendingIntent(R.id.rv_wrapper_container, clickResp)
+                wrappedRv.forceFullReapply()
                 wrappedRv
             } else if (shouldGenerateLiveUpdate) {
                 val rv = android.widget.RemoteViews(packageName, R.layout.layout_origin_live_update)
+                rv.forceFullReapply()
                 rv.setOnClickPendingIntent(R.id.live_update_container, clickResp)
                 rv.setTextViewText(R.id.live_update_title, title)
                 rv.setTextViewText(R.id.live_update_text, text)
@@ -916,6 +931,8 @@ class PlaygroundService : Service() {
 
             // Lifecycle: first post for this id = create (0); a repeat while still active = update (1).
             val operation = if (originScenes.containsKey(notificationId)) 1 else 0
+            // Strictly-increasing per-id record so OriginOS doesn't drop the update as stale.
+            val changeRecord = ((originChangeRecord[notificationId] ?: 0) + 1).also { originChangeRecord[notificationId] = it }
 
             val bundle = OriginIslandBuilder.buildBundle(
                 context = this,
@@ -960,7 +977,8 @@ class PlaygroundService : Service() {
                 buttonTitles = buttonTitles,
                 customTemplate = customTemplate,
                 waveState = waveState,
-                waveColorList = waveColorList
+                waveColorList = waveColorList,
+                changeRecord = changeRecord
             )
 
             // When the user swipes the host away, end the OriginIsland too (a plain dismiss leaves
@@ -999,6 +1017,22 @@ class PlaygroundService : Service() {
             notificationManager.notify(OriginIslandConstants.SUPERX_TAG, notificationId, nb.build())
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    /**
+     * Sets RemoteViews FLAG_REAPPLY_DISALLOWED (=1). OriginOS's CustomSuperXTemplate only does a full
+     * apply() (which actually re-renders the card) when the previous RemoteViews carried this flag;
+     * otherwise it calls reapply(), which no-ops on a relayed card so live RemoteViews updates (nav
+     * card internals, etc.) never show. addFlags() is @hide, so invoke it reflectively.
+     */
+    private fun android.widget.RemoteViews.forceFullReapply() {
+        try {
+            android.widget.RemoteViews::class.java
+                .getMethod("addFlags", Int::class.javaPrimitiveType)
+                .invoke(this, 1)
+        } catch (e: Throwable) {
+            // Flag unavailable on this build — reapply() path will be used; harmless.
         }
     }
 
@@ -1042,6 +1076,15 @@ class PlaygroundService : Service() {
             )
         } else bmp
         return Icon.createWithBitmap(scaled)
+    }
+
+    private fun <T : android.os.Parcelable> Intent.getParcelableExtraSafe(key: String, clazz: Class<T>): T? {
+        return if (Build.VERSION.SDK_INT >= 33) {
+            this.getParcelableExtra(key, clazz)
+        } else {
+            @Suppress("DEPRECATION")
+            this.getParcelableExtra(key) as? T
+        }
     }
 
     private fun createNotificationChannel(channelId: String) {

@@ -19,15 +19,26 @@ class MediaControlReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        val token = intent.getParcelableExtra<MediaSession.Token>(EXTRA_TOKEN) ?: return
+        val castId = intent.getIntExtra("cast_id", -1)
+        @Suppress("DEPRECATION")
+        val token = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(EXTRA_TOKEN, MediaSession.Token::class.java)
+        } else {
+            intent.getParcelableExtra(EXTRA_TOKEN)
+        }
 
         try {
-            val controller = MediaController(context, token)
+            val controller = (if (castId != -1) NotificationCastListener.activeControllers[castId] else null)
+                ?: token?.let { MediaController(context, it) }
+                ?: return
+
             val transportControls = controller.transportControls
+            val state = controller.playbackState
+
+            Log.d("MediaControlReceiver", "onReceive action=$action castId=$castId state=${state?.state}")
 
             when (action) {
                 ACTION_PLAY_PAUSE -> {
-                    val state = controller.playbackState
                     if (state?.state == android.media.session.PlaybackState.STATE_PLAYING) {
                         transportControls.pause()
                     } else {

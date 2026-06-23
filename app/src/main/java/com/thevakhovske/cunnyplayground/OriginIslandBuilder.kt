@@ -258,14 +258,17 @@ object OriginIslandBuilder {
         buttonTitles: List<String> = emptyList(),
         customTemplate: android.widget.RemoteViews? = null,
         waveState: Int = 1,
-        waveColorList: List<String>? = null
+        waveColorList: List<String>? = null,
+        changeRecord: Int = 0
     ): Bundle {
         val bundle = Bundle()
         bundle.putInt(BUNDLE_KEY_OPERATION, operation)
         bundle.putBoolean(BUNDLE_KEY_SHOW_NOTIFY, true)
         bundle.putInt(BUNDLE_KEY_TEMPLATE, template)
         bundle.putString(BUNDLE_KEY_SCENE, scene)
-        bundle.putInt(BUNDLE_KEY_CHANGE_RECORD, 0)
+        // Must strictly increase per update or OriginOS treats the re-post as stale and drops it
+        // (this is why progress/seekbar/play-state weren't refreshing on the cast).
+        bundle.putInt(BUNDLE_KEY_CHANGE_RECORD, changeRecord)
         bundle.putBoolean(OriginIslandConstants.BUNDLE_KEY_SOUND, sound)
         bundle.putBoolean(OriginIslandConstants.BUNDLE_KEY_DISMISS_WHEN_KILL, dismissWhenKill)
         if (keepDuration > 0) bundle.putInt(OriginIslandConstants.BUNDLE_KEY_KEEP_DURATION, keepDuration)
