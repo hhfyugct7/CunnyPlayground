@@ -490,6 +490,21 @@ fun PlaygroundScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavio
             }
         }
 
+        item {
+            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
+                ArrowPreference(
+                    title = "🎰 Cunny Casino (Easter Egg)",
+                    summary = "Launch the fully-fledged RemoteViews Slot Machine!",
+                    onClick = {
+                        val intent = Intent(context, CasinoService::class.java).apply {
+                            action = CasinoService.ACTION_LAUNCH
+                        }
+                        context.startService(intent)
+                    }
+                )
+            }
+        }
+
         if (notifications.isNotEmpty()) {
             item { SmallTitle(stringResource(R.string.section_posted_notifs)) }
             items(notifications.toList()) { notif ->
