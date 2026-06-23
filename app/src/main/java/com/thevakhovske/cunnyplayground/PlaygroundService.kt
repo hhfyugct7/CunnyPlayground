@@ -220,15 +220,15 @@ class PlaygroundService : Service() {
     }
 
     private fun startPromotedNotification(intent: Intent) {
+        val sourceApp = intent.getStringExtra("source_app") ?: "Notification"
         val title = intent.getStringExtra("title")?.takeIf { it.isNotBlank() } ?: "Ongoing Task"
-        val text = intent.getStringExtra("text")?.takeIf { it.isNotBlank() } ?: " "
+        val text = intent.getStringExtra("text")?.takeIf { it.isNotBlank() } ?: sourceApp
         val subtext = intent.getStringExtra("subtext")
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
             NotificationCastListener.activeSmallIcons[notificationId] ?: intent.getParcelableExtraSafe("small_icon_obj", android.graphics.drawable.Icon::class.java)
         } else null 
-        val sourceApp = intent.getStringExtra("source_app")
         val isPromoted = intent.getBooleanExtra("is_promoted", true)
         val statusChipText = intent.getStringExtra("status_chip_text")
         val showProgress = intent.getBooleanExtra("show_progress", true)

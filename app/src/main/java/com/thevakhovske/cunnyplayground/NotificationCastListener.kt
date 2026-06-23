@@ -469,6 +469,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("source_pkg", sbn.packageName)
             // Assign the finalized chip text
             putExtra("status_chip_text", processedChipText)
+            putExtra("click_resp", sbn.notification.contentIntent)
             
             if (castMode == "hyperisland") {
                 putExtra("hyper_left_text", hyperLeftText)
@@ -986,6 +987,7 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("title", title)
             putExtra("text", artist)
             putExtra("status_chip_text", timeText)
+            putExtra("click_resp", sbn.notification.contentIntent)
         }
         startService(intent)
       } catch (e: Throwable) {
