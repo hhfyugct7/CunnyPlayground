@@ -994,12 +994,12 @@ class NotificationCastListener : NotificationListenerService() {
             putStringArrayListExtra("oi_wave_color", colors)
             
             putExtra("source_pkg", sbn.packageName)
-            val playStateStr = if (isPlaying) "play" else "pause"
-            val timeText = if (durationMs > 0) "${formatTime(positionMs)} / ${formatTime(durationMs)}_$playStateStr" else "${formatTime(positionMs)}_$playStateStr"
+            val timeText = formatTime(positionMs)
             
-            putExtra("title", title)
-            putExtra("text", artist)
+            putExtra("title", " ")
+            putExtra("text", " ")
             putExtra("status_chip_text", timeText)
+            putExtra("force_update_tick", System.currentTimeMillis())
             putExtra("click_resp", sbn.notification.contentIntent)
         }
         startService(intent)

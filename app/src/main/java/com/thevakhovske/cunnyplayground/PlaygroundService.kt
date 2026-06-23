@@ -221,8 +221,8 @@ class PlaygroundService : Service() {
 
     private fun startPromotedNotification(intent: Intent) {
         val sourceApp = intent.getStringExtra("source_app") ?: "Notification"
-        val title = intent.getStringExtra("title")?.takeIf { it.isNotBlank() } ?: "Ongoing Task"
-        val text = intent.getStringExtra("text")?.takeIf { it.isNotBlank() } ?: sourceApp
+        val title = intent.getStringExtra("title")?.takeIf { it.isNotEmpty() } ?: "Ongoing Task"
+        val text = intent.getStringExtra("text")?.takeIf { it.isNotEmpty() } ?: sourceApp
         val subtext = intent.getStringExtra("subtext")
         val notificationId = intent.getIntExtra("id", NOTIFICATION_ID)
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
