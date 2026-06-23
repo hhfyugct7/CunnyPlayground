@@ -980,7 +980,8 @@ class NotificationCastListener : NotificationListenerService() {
             putStringArrayListExtra("oi_wave_color", colors)
             
             putExtra("source_pkg", sbn.packageName)
-            val timeText = if (durationMs > 0) "${formatTime(positionMs)} / ${formatTime(durationMs)}" else formatTime(positionMs)
+            val playStateStr = if (isPlaying) "play" else "pause"
+            val timeText = if (durationMs > 0) "${formatTime(positionMs)} / ${formatTime(durationMs)}_$playStateStr" else "${formatTime(positionMs)}_$playStateStr"
             
             putExtra("title", title)
             putExtra("text", artist)

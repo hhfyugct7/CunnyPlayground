@@ -329,7 +329,8 @@ object OriginIslandBuilder {
             // Base template requires a subInfo; otherwise show the source subtext as plain text.
             template == OriginIslandConstants.TEMPLATE_BASE -> {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_TEXT)
-                baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, subText?.takeIf { it.isNotBlank() } ?: extra1)
+                val baseSub = (subText?.takeIf { it.isNotBlank() } ?: extra1).takeIf { it.isNotBlank() } ?: " "
+                baseBundle.putString(BUNDLE_KEY_BASE_SUB_TEXT, baseSub)
             }
             !subText.isNullOrBlank() -> {
                 baseBundle.putInt(BUNDLE_KEY_BASE_SUB_INFO, OriginIslandConstants.BASE_SUB_INFO_TEXT)
