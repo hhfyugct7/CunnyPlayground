@@ -130,20 +130,35 @@ class NotificationCastListener : NotificationListenerService() {
 
         val prefs = getSharedPreferences("experimental_prefs", MODE_PRIVATE)
         val isCastingEnabled = prefs.getBoolean("cast_notifications", false)
+        val isMediaCastingEnabled = prefs.getBoolean("cast_media_sessions", false)
+
+        if (!isCastingEnabled && !isMediaCastingEnabled) return
+
+        val extras = sbn.notification.extras
+        
+        // --- MEDIA SESSION INTERCEPTION ---
+        val mediaSession = extras.getParcelable<android.media.session.MediaSession.Token>("android.mediaSession")
+        val template = extras.getString("android.template")
+        val isMediaTemplate = template == "android.app.Notification\$MediaStyle"
+        
+        if (mediaSession != null || isMediaTemplate) {
+            val ignoredMediaApps = prefs.getStringSet("cast_ignored_media_apps", emptySet()) ?: emptySet()
+            if (isMediaCastingEnabled && !ignoredMediaApps.contains(sbn.packageName) && mediaSession != null) {
+                processMediaNotification(sbn, mediaSession)
+            }
+            // Media notifications are exclusively handled by the Media Player Island if enabled.
+            // If disabled or ignored, we also don't want them polluting the regular Live Updates.
+            return 
+        }
 
         if (!isCastingEnabled) return
 
-        // Ignore our own notifications
-        if (sbn.packageName == packageName) return
-
-        // Check app filter (if set)
+        // Check app filter (if set) for regular notifications
         val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
         if (enabledApps != null && !enabledApps.contains(sbn.packageName)) {
             //Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (not in filter)")
             return
         }
-
-        val extras = sbn.notification.extras
         val titleExtra = extras.getCharSequence("android.title")
         val textExtra = extras.getCharSequence("android.text")
         val subTextExtra = extras.getCharSequence("android.subText")
@@ -738,14 +753,25 @@ class NotificationCastListener : NotificationListenerService() {
         }
         
         var waveColor = android.graphics.Color.WHITE
-        val albumArtBitmap = metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+        val rawAlbumArt = metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: sbn.notification.extras.getParcelable<android.graphics.Bitmap>("android.picture")
             ?: sbn.notification.extras.getParcelable<android.graphics.Bitmap>("android.largeIcon")
         
-        if (albumArtBitmap != null) {
-            rv.setImageViewBitmap(R.id.media_album_art, albumArtBitmap)
+        var safeAlbumArt = rawAlbumArt
+        if (rawAlbumArt != null) {
+            val maxDimen = Math.max(rawAlbumArt.width, rawAlbumArt.height)
+            if (maxDimen > 256) {
+                val scale = 256f / maxDimen
+                val newW = (rawAlbumArt.width * scale).toInt().coerceAtLeast(1)
+                val newH = (rawAlbumArt.height * scale).toInt().coerceAtLeast(1)
+                safeAlbumArt = android.graphics.Bitmap.createScaledBitmap(rawAlbumArt, newW, newH, true)
+            }
+        }
+        
+        if (safeAlbumArt != null) {
+            rv.setImageViewBitmap(R.id.media_album_art, safeAlbumArt)
             try {
-                val palette = androidx.palette.graphics.Palette.from(albumArtBitmap).generate()
+                val palette = androidx.palette.graphics.Palette.from(safeAlbumArt).generate()
                 waveColor = palette.getVibrantColor(palette.getDominantColor(android.graphics.Color.WHITE))
             } catch (e: Exception) {
                 Log.e("NotificationCast", "Palette extraction failed", e)
@@ -780,11 +806,17 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("oi_wave_state", if (isPlaying) 1 else 0)
             
             // Set Album Art as the small icon object to show up in the capsule
-            if (albumArtBitmap != null) {
+            if (safeAlbumArt != null) {
                 if (Build.VERSION.SDK_INT >= 23) {
-                    putExtra("small_icon_obj", android.graphics.drawable.Icon.createWithBitmap(albumArtBitmap))
+                    val capsuleIcon = android.graphics.Bitmap.createScaledBitmap(safeAlbumArt, 64, 64, true)
+                    putExtra("small_icon_obj", android.graphics.drawable.Icon.createWithBitmap(capsuleIcon))
                 }
             }
+            
+            // This is CRITICAL: PlaygroundService deduplicates intents based on extra hash.
+            // RemoteViews toString() does not change when we call setProgressBar. 
+            // We MUST include positionMs so PlaygroundService sees a new update and posts it!
+            putExtra("media_position", positionMs)
             
             val colors = java.util.ArrayList<String>()
             colors.add(String.format("#%06X", 0xFFFFFF and waveColor))
