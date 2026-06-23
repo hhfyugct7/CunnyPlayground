@@ -980,9 +980,11 @@ class NotificationCastListener : NotificationListenerService() {
             putStringArrayListExtra("oi_wave_color", colors)
             
             putExtra("source_pkg", sbn.packageName)
+            val timeText = if (durationMs > 0) "${formatTime(positionMs)} / ${formatTime(durationMs)}" else formatTime(positionMs)
+            
             putExtra("title", title)
             putExtra("text", artist)
-            putExtra("status_chip_text", artist)
+            putExtra("status_chip_text", timeText)
         }
         startService(intent)
       } catch (e: Throwable) {
