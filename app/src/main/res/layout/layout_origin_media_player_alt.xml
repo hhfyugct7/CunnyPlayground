@@ -141,12 +141,12 @@
 
         <ImageButton
             android:id="@+id/media_btn_play_pause"
-            android:layout_width="54dp"
-            android:layout_height="54dp"
+            android:layout_width="47dp"
+            android:layout_height="match_parent"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_media_play"
+            android:padding="6dp"
             android:scaleType="fitCenter"
-            android:padding="6dp" />
+            android:src="@drawable/ic_media_play" />
 
         <ImageButton
             android:id="@+id/media_btn_next"
