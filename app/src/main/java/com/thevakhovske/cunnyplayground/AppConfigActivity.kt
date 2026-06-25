@@ -85,7 +85,8 @@ fun AppConfigScreen(packageName: String, onBack: () -> Unit, onSave: () -> Unit)
         } catch (_: Exception) {}
     }
 
-    val castMode = remember { prefs.getString("cast_mode", "live_updates") ?: "live_updates" }
+    // Orange branch: OriginIsland only — the per-app config always renders the OriginIsland sections.
+    val castMode = "originisland"
 
     var iconSource by remember { mutableStateOf(prefs.getString("${packageName}_icon_source", "default") ?: "default") }
 

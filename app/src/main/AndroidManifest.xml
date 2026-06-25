@@ -54,14 +54,6 @@
         <activity android:name=".InspectorDetailActivity" />
         <activity android:name=".OriginSamplesActivity" />
 
-        <receiver
-            android:name=".HyperCommandReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.thevakhovske.cunnyplayground.SEND_HYPER" />
-            </intent-filter>
-        </receiver>
-
         <service android:name=".CasinoService" />
 
         <receiver

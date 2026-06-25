@@ -205,6 +205,15 @@ class NotificationCastListener : NotificationListenerService() {
 
         if (!isCastingEnabled) return
 
+        // Skip group SUMMARY notifications. They're invisible containers for a group of child
+        // notifications and carry generic placeholder content (a bare "Notification" + app name).
+        // An app like Google posts the summary alongside the real notification, so casting it spawns a
+        // phantom second island next to the genuine one (the reported init/final double-island bug).
+        if ((sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) {
+            //Log.d("NotificationCast", "Skipping group summary from ${sbn.packageName}")
+            return
+        }
+
         // Check app filter (if set) for regular notifications
         val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
         if (enabledApps != null && !enabledApps.contains(sbn.packageName)) {
@@ -286,8 +295,8 @@ class NotificationCastListener : NotificationListenerService() {
 
         //Log.d("NotificationCast", "Casting notification from $sourceApp (${sbn.packageName})")
 
-        // Read per-app customization
-        val castMode = prefs.getString("cast_mode", "live_updates")
+        // Orange branch: OriginIsland is the only cast mode.
+        val castMode = "originisland"
         
         fun resolveText(source: String?): String {
             return when (source) {
@@ -309,22 +318,12 @@ class NotificationCastListener : NotificationListenerService() {
         }
 
         var finalChipText = ""
-        var hyperLeftText = ""
-        var hyperMainText = ""
         var originLeftText = ""
         var originRightText = ""
         var originTemplate = 0
         var originRightTemplate = 0
 
-        if (castMode == "hyperisland") {
-            val leftSource = prefs.getString("${sbn.packageName}_hyper_left_source", "title")
-            val leftRegex = prefs.getString("${sbn.packageName}_hyper_left_regex", "")
-            hyperLeftText = applyRegex(resolveText(leftSource), leftRegex)
-
-            val mainSource = prefs.getString("${sbn.packageName}_hyper_main_source", "text")
-            val mainRegex = prefs.getString("${sbn.packageName}_hyper_main_regex", "")
-            hyperMainText = applyRegex(resolveText(mainSource), mainRegex)
-        } else if (castMode == "originisland") {
+        run {
             val leftSource = prefs.getString("${sbn.packageName}_origin_left_source", "title")
             val leftRegex = prefs.getString("${sbn.packageName}_origin_left_regex", "")
             originLeftText = applyRegex(resolveText(leftSource), leftRegex)
@@ -336,10 +335,6 @@ class NotificationCastListener : NotificationListenerService() {
             // 0 = Auto: PlaygroundService picks the template by content (e.g. progress when present)
             originTemplate = prefs.getInt("${sbn.packageName}_origin_template", 0)
             originRightTemplate = prefs.getInt("${sbn.packageName}_origin_right_template", 0)
-        } else {
-            val textSource = prefs.getString("${sbn.packageName}_text_source", "text")
-            val regexStr = prefs.getString("${sbn.packageName}_regex_filter", "")
-            finalChipText = applyRegex(resolveText(textSource), regexStr)
         }
 
         val iconSource = prefs.getString("${sbn.packageName}_icon_source", "default")
@@ -472,18 +467,11 @@ class NotificationCastListener : NotificationListenerService() {
             putExtra("status_chip_text", processedChipText)
             putExtra("click_resp", sbn.notification.contentIntent)
             
-            if (castMode == "hyperisland") {
-                putExtra("hyper_left_text", hyperLeftText)
-                putExtra("hyper_main_text", hyperMainText)
-            }
-
-            if (castMode == "originisland") {
-                if (originLeftText.isNotBlank()) putExtra("oi_left_content", originLeftText)
-                if (originRightText.isNotBlank()) putExtra("oi_right_content", originRightText)
-                // 0 (or out-of-range) is treated as Auto by PlaygroundService
-                putExtra("oi_template", originTemplate)
-                putExtra("oi_right_template", originRightTemplate)
-            }
+            if (originLeftText.isNotBlank()) putExtra("oi_left_content", originLeftText)
+            if (originRightText.isNotBlank()) putExtra("oi_right_content", originRightText)
+            // 0 (or out-of-range) is treated as Auto by PlaygroundService
+            putExtra("oi_template", originTemplate)
+            putExtra("oi_right_template", originRightTemplate)
 
             putExtra("id", castId)
             putExtra("icon_res", R.drawable.ic_alert)

@@ -21,8 +21,6 @@ import org.json.JSONObject
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
-import io.github.d4viddf.hyperisland_kit.HyperAction
-import io.github.d4viddf.hyperisland_kit.HyperPicture
 
 class PlaygroundService : Service() {
 
@@ -31,8 +29,7 @@ class PlaygroundService : Service() {
         const val ACTION_CANCEL = "ACTION_CANCEL"
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_REPLICATE = "ACTION_REPLICATE"
-        const val CHANNEL_ID = "live_updates_channel"
-        const val HYPER_CHANNEL_ID = "hyperslop_channel"
+        const val CHANNEL_ID = "background_channel"
         const val ORIGIN_CHANNEL_ID = "originisland_channel"
         const val NOTIFICATION_ID = 1001
     }
@@ -228,446 +225,13 @@ class PlaygroundService : Service() {
         val iconRes = intent.getIntExtra("icon_res", R.mipmap.ic_launcher_round)
         val iconObj = if (Build.VERSION.SDK_INT >= 23) {
             NotificationCastListener.activeSmallIcons[notificationId] ?: intent.getParcelableExtraSafe("small_icon_obj", android.graphics.drawable.Icon::class.java)
-        } else null 
-        val isPromoted = intent.getBooleanExtra("is_promoted", true)
-        val statusChipText = intent.getStringExtra("status_chip_text")
-        val showProgress = intent.getBooleanExtra("show_progress", true)
-        val timestamp = intent.getLongExtra("when", System.currentTimeMillis())
-        
-        val castMode = intent.getStringExtra("cast_mode") ?: "live_updates"
-        val targetChannel = if (castMode == "hyperisland") HYPER_CHANNEL_ID else CHANNEL_ID
-
-        val largeIconObj = if (Build.VERSION.SDK_INT >= 23) {
-            NotificationCastListener.activeLargeIcons[notificationId] ?: intent.getParcelableExtraSafe("large_icon_obj", android.graphics.drawable.Icon::class.java)
         } else null
-        val largeIconBitmap = NotificationCastListener.activeLargeBitmaps[notificationId] ?: intent.getParcelableExtraSafe("large_icon_bitmap", android.graphics.Bitmap::class.java)
-        val sourceRv = NotificationCastListener.activeRemoteViews[notificationId] ?: intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
-        val segmentsCount = intent.getIntExtra("progress_segments", 0)
+        val statusChipText = intent.getStringExtra("status_chip_text")
 
         activeIds.add(notificationId)
 
-        // OriginOS / vivo SuperX path: build the atomic notification + OriginIsland exactly like
-        // superx_demo, on a clean builder, then bail out of the generic Live-Updates/HyperIsland flow.
-        if (castMode == "originisland") {
-            postOriginIsland(intent, notificationId, title, text, subtext, sourceApp, statusChipText, iconObj, iconRes)
-            return
-        }
-
-        createNotificationChannel(targetChannel)
-
-        val builder = NotificationCompat.Builder(this, targetChannel)
-        
-        if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
-            builder.setLargeIcon(largeIconObj)
-        } else if (largeIconBitmap != null) {
-            builder.setLargeIcon(largeIconBitmap)
-        }
-        
-        if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
-            builder.setSmallIcon(IconCompat.createFromIcon(this, iconObj))
-        } else {
-            builder.setSmallIcon(iconRes)
-        }
-
-        builder.setContentTitle(title)
-            .setContentText(text)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setShowWhen(true)
-            .setWhen(timestamp)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSilent(true)
-
-        if (!sourceApp.isNullOrEmpty()) {
-            builder.setSubText(sourceApp)
-        }
-
-        // Apply Actions
-        val actions = intent.getParcelableArrayListExtra<Notification.Action>("actions")
-        actions?.forEach { action ->
-            val icon = if (Build.VERSION.SDK_INT >= 23) {
-                action.getIcon()?.let { IconCompat.createFromIcon(this, it) }
-            } else null
-            
-            val builderAction = NotificationCompat.Action.Builder(
-                icon,
-                action.title,
-                action.actionIntent
-            ).build()
-            builder.addAction(builderAction)
-        }
-
-        if (castMode == "live_updates") {
-            // Apply Progress
-            val progress = intent.getIntExtra("progress", 0)
-            val progressMax = intent.getIntExtra("progress_max", 0)
-            val isIndeterminate = intent.getBooleanExtra("progress_indeterminate", false)
-            
-            if (showProgress) {
-                builder.setProgress(progressMax, progress, isIndeterminate)
-            }
-    
-            if (isPromoted) {
-                try {
-                    val method = builder.javaClass.getMethod("setRequestPromotedOngoing", Boolean::class.java)
-                    method.invoke(builder, true)
-                } catch (e: Exception) {
-                    builder.extras.putBoolean("android.app.extra.PROMOTED_ONGOING", true)
-                }
-            }
-    
-            if (!statusChipText.isNullOrEmpty()) {
-                try {
-                    val method = builder.javaClass.getMethod("setShortCriticalText", String::class.java)
-                    method.invoke(builder, statusChipText)
-                } catch (e: Exception) {
-                    // Fail silently if API not available
-                }
-            }
-    
-            // Progress Style (Status Chip)
-            if (showProgress && isPromoted && progressMax > 0) {
-                try {
-                    val progressStyle = NotificationCompat.ProgressStyle()
-                    val totalDuration = 100000 // arbitrary base for percentage (Int)
-                    val currentProgress = (progress.toDouble() / progressMax * totalDuration).toInt()
-                    
-                    // Apply Monet dynamic color accent to progress bar and icons
-                    try {
-                        val dynamicContext = com.google.android.material.color.DynamicColors.wrapContextIfAvailable(this)
-                        val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.purple_500)
-                        progressStyle.addProgressSegment(
-                        NotificationCompat.ProgressStyle.Segment(totalDuration).setColor(primaryColor)
-                    )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                    progressStyle.setProgress(currentProgress)
-                    builder.setStyle(progressStyle)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            } else if (showProgress) {
-                // Standard progress only
-                try {
-                    val progressStyle = NotificationCompat.ProgressStyle()
-                    builder.setStyle(progressStyle)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-
-        if (castMode == "hyperisland") {
-            try {
-                // Initialize builder early to supply resources unconditionally
-                val hyperBuilder = io.github.d4viddf.hyperisland_kit.HyperIslandNotification.Builder(
-                    this,
-                    "live_updates_recaster",
-                    "Incoming Notification"
-                )
-                
-                val hPic = if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
-                    io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", iconObj)
-                } else {
-                    io.github.d4viddf.hyperisland_kit.HyperPicture("default_icon", this, iconRes)
-                }
-                hyperBuilder.addPicture(hPic)
-                
-                // Register LargeIcon if available for heads-up/expanded views
-                if (largeIconObj != null && Build.VERSION.SDK_INT >= 23) {
-                    hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("big_icon", largeIconObj))
-                } else if (largeIconBitmap != null) {
-                    hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("big_icon", largeIconBitmap))
-                }
-
-                // Inject dummy resources so user's manual notif.json testing doesn't break HyperOS rendering
-                hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("file_preview", this, iconRes))
-                hyperBuilder.addPicture(io.github.d4viddf.hyperisland_kit.HyperPicture("upload_status", this, iconRes))
-
-                val rawJson = intent.getStringExtra("raw_hyper_json")
-                if (!rawJson.isNullOrBlank()) {
-                    builder.extras.putString("miui.focus.param", rawJson)
-                    builder.extras.putAll(hyperBuilder.buildResourceBundle())
-                    
-                    // We still need to set some defaults for the notification shade part
-                    builder.setSmallIcon(iconRes)
-                    builder.setContentTitle(title)
-                    builder.setContentText(text)
-                } else if (io.github.d4viddf.hyperisland_kit.HyperIslandNotification.isSupported(this)) {
-
-                    hyperBuilder.setBaseInfo(
-                        title = title,
-                        content = text,
-                        pictureKey = null
-                    )
-                    val islandText = statusChipText?.takeIf { it.isNotBlank() } ?: title
-                    
-                    val hyperLeftExtra = intent.getStringExtra("hyper_left_text")
-                    val hyperMainExtra = intent.getStringExtra("hyper_main_text")
-
-                    // Structure the Big Island Area to populate both pill sides properly
-                    val picInfo = io.github.d4viddf.hyperisland_kit.models.PicInfo(1, "default_icon", false, false, 0, null, null, null)
-                    
-                    val leftTextInfoObj = io.github.d4viddf.hyperisland_kit.models.TextInfo(
-                        title = hyperLeftExtra?.takeIf { it.isNotBlank() } ?: title,
-                        content = null,
-                        showHighlightColor = false,
-                        narrowFont = null
-                    )
-                    
-                    val imageTextInfoLeft = io.github.d4viddf.hyperisland_kit.models.ImageTextInfoLeft(
-                        1, picInfo, leftTextInfoObj, null
-                    )
-                    
-                    val rootTextInfo = io.github.d4viddf.hyperisland_kit.models.TextInfo(
-                        title = hyperMainExtra?.takeIf { it.isNotBlank() } ?: text, 
-                        content = null, 
-                        showHighlightColor = false, 
-                        narrowFont = null
-                    )
-                    
-                    // Pass rootTextInfo as the 3rd parameter mapping natively to "textInfo" block
-                    hyperBuilder.setBigIslandInfo(imageTextInfoLeft, null, rootTextInfo, null, null, null)
-                    
-                    // Use setSmallIslandIcon to cleanly map a solo picInfo block matching tethering smallIslandArea
-                    hyperBuilder.setSmallIslandIcon("default_icon")
-                    
-                    // The icon appearing in param_v2
-                    hyperBuilder.setPicInfo(2, "default_icon")
-                    
-                    // Auto-popup priority
-                    hyperBuilder.setIslandConfig(priority = 2)
-
-                    //if (sourceRv != null) {
-                        //builder.extras.putParcelable("miui.focus.rv", sourceRv)
-                    //}
-                    
-                    // Add Interactive Actions (Buttons)
-                    val originalActions = if (Build.VERSION.SDK_INT >= 34) {
-                        intent.getParcelableArrayListExtra("actions", Notification.Action::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        intent.getParcelableArrayListExtra<Notification.Action>("actions")
-                    }
-
-                    originalActions?.forEachIndexed { index, action ->
-                        val actionIntent = action.actionIntent
-                        if (actionIntent != null) {
-                            val type = when {
-                                actionIntent.isActivity -> 1
-                                actionIntent.isBroadcast -> 2
-                                actionIntent.isForegroundService || actionIntent.isService -> 3
-                                else -> 2 // Default to broadcast
-                            }
-
-                            val actionIcon = action.getIcon()
-                            val actionBitmap: Bitmap? = if (actionIcon != null) {
-                                try {
-                                    actionIcon.loadDrawable(this)?.toBitmap(128, 128)
-                                } catch (e: Exception) {
-                                    null
-                                }
-                            } else null
-
-                            val hAction = if (actionBitmap != null) {
-                                HyperAction(
-                                    key = "action_$index",
-                                    title = action.title?.toString() ?: "Action",
-                                    bitmap = actionBitmap,
-                                    pendingIntent = actionIntent,
-                                    actionIntentType = type
-                                )
-                            } else {
-                                HyperAction(
-                                    key = "action_$index",
-                                    title = action.title?.toString() ?: "Action",
-                                    pendingIntent = actionIntent,
-                                    actionIntentType = type
-                                )
-                            }
-                            hyperBuilder.addAction(hAction)
-                        }
-                    }
-                    
-                    val jsonPayloadRaw = hyperBuilder.buildJsonParam()
-                    val jsonObj = org.json.JSONObject(jsonPayloadRaw)
-                    val paramV2 = jsonObj.optJSONObject("param_v2")
-                    val useLargeIcon = (largeIconObj != null || largeIconBitmap != null)
-                    if (paramV2 != null) {
-                        if (useLargeIcon) {
-                            // we love json injections
-                            val iconTextInfo = org.json.JSONObject().apply {
-                                val animIconInfo = org.json.JSONObject().apply {
-                                    put("type", 0)
-                                    put("src", "miui.focus.pic_big_icon")
-                                    put("loop", true)
-                                    put("autoplay", true)
-                                }
-                                put("animIconInfo", animIconInfo)
-                                put("title", title)
-                                put("content", text)
-                            }
-                            paramV2.put("iconTextInfo", iconTextInfo)
-                            paramV2.remove("picInfo")
-                        }
-                        
-                        paramV2.put("enableFloat", false)
-                        paramV2.put("islandFirstFloat", false)
-                        
-                        // Inject hintInfo if subtext exists
-                        if (!subtext.isNullOrBlank()) {
-                            paramV2.put("hintInfo", org.json.JSONObject().apply {
-                                put("type", 1)
-                                put("title", subtext)
-                            })
-                        }
-                        
-                        // Implement Progress Bar Support (Manual Injection)
-                        val progress = intent.getIntExtra("progress", 0)
-                        val progressMax = intent.getIntExtra("progress_max", 0)
-                        if (showProgress && progressMax > 0 && progress < progressMax) {
-                            val progressPercent = (progress * 100) / progressMax
-                            val hasSegments = segmentsCount > 0
-                            
-                            // 1. Root Progress
-                            if (hasSegments) {
-                                val multiProgressInfo = org.json.JSONObject().apply {
-                                    put("progress", progressPercent)
-                                    put("points", segmentsCount)
-                                    put("color", "#34C759")
-                                }
-                                paramV2.put("multiProgressInfo", multiProgressInfo)
-                            } else {
-                                val rootProgressInfo = org.json.JSONObject().apply {
-                                    put("progress", progressPercent)
-                                    put("colorProgress", "#34C759")
-                                }
-                                paramV2.put("progressInfo", rootProgressInfo)
-                            }
-                            
-                            // 2. Small Island Progress (requires combinePicInfo wrapper)
-                            val paramIsland = paramV2.optJSONObject("param_island")
-                            val smallArea = paramIsland?.optJSONObject("smallIslandArea")
-                            val picInfo = smallArea?.optJSONObject("picInfo")
-                            if (smallArea != null && picInfo != null) {
-                                val combinePicInfo = org.json.JSONObject().apply {
-                                    put("picInfo", picInfo)
-                                    val progKey = "progressInfo"
-                                    put(progKey, org.json.JSONObject().apply {
-                                        put("progress", progressPercent)
-                                        put("colorReach", "#34C759")
-                                    })
-                                }
-                                smallArea.remove("picInfo")
-                                smallArea.put("combinePicInfo", combinePicInfo)
-                            }
-                            
-                            // 3. Big Island Progress (requires progressTextInfo block)
-                            val bigArea = paramIsland?.optJSONObject("bigIslandArea")
-                            if (bigArea != null) {
-                                val progressTextInfo = org.json.JSONObject().apply {
-                                    val progKey = "progressInfo"
-                                    put(progKey, org.json.JSONObject().apply {
-                                        put("progress", progressPercent)
-                                        put("colorReach", "#34C759")
-                                    })
-                                }
-                                bigArea.put("progressTextInfo", progressTextInfo)
-                            }
-                        }
-                    }
-                    val jsonPayload = jsonObj.toString()
-                    val resBundle = hyperBuilder.buildResourceBundle()
-                    
-                    builder.extras.putString("miui.focus.param", jsonPayload)
-                    builder.extras.putAll(resBundle)
-
-                    if (isMiuiGlobalBuild) {
-                        // inject original remoteview (from preliminary impl)
-                        val sourceRv = NotificationCastListener.activeRemoteViews[notificationId] ?: intent.getParcelableExtra<RemoteViews>("miui_rv")
-                        if (sourceRv != null) {
-                            val wrappedRv = RemoteViews(packageName, R.layout.focus_rv_wrapper)
-                            wrappedRv.removeAllViews(R.id.rv_wrapper_container)
-                            wrappedRv.addView(R.id.rv_wrapper_container, sourceRv)
-                            builder.extras.putParcelable("miui.focus.rv", wrappedRv)
-                        }
-
-                        // miui.focus.pic_ticker needs to exists according to notificationfocusmanager
-                        val tPic = if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
-                            io.github.d4viddf.hyperisland_kit.HyperPicture("ticker", iconObj)
-                        } else {
-                            io.github.d4viddf.hyperisland_kit.HyperPicture("ticker", this, iconRes)
-                        }
-                        hyperBuilder.addPicture(tPic)
-                        
-                        builder.extras.putAll(hyperBuilder.buildResourceBundle())
-
-                        // miui.focus.param.custom
-                        val customJson = JSONObject().apply {
-                            put("ticker", title)
-                            put("tickerPic", "miui.focus.pic_ticker")
-                            put("enableFloat", false)
-                            put("updatable", true)
-                            put("isShowNotification", true)
-                            put("islandFirstFloat", false)
-                            put("timeout", 10000)
-
-                            val paramIsland = JSONObject().apply {
-                                put("islandProperty", 1)
-                                put("islandPriority", 2)
-                                put("islandOrder", false)
-                                put("dismissIsland", false)
-                                put("maxSize", false)
-                                put("needCloseAnimation", true)
-
-                                val bigIslandArea = JSONObject().apply {
-                                    val imageTextInfoLeft = JSONObject().apply {
-                                        put("type", 1)
-                                        put("picInfo", JSONObject().apply {
-                                            put("type", 1)
-                                            put("pic", "miui.focus.pic_default_icon")
-                                            put("loop", false)
-                                            put("autoplay", false)
-                                            put("number", 0)
-                                        })
-                                        put("textInfo", JSONObject().apply {
-                                            put("title", title)
-                                            put("showHighlightColor", false)
-                                        })
-                                    }
-                                    put("imageTextInfoLeft", imageTextInfoLeft)
-                                    
-                                    put("textInfo", JSONObject().apply {
-                                        put("title", text)
-                                        put("showHighlightColor", false)
-                                    })
-                                }
-                                put("bigIslandArea", bigIslandArea)
-
-                                val smallIslandArea = JSONObject().apply {
-                                    put("picInfo", JSONObject().apply {
-                                        put("type", 1)
-                                        put("pic", "miui.focus.pic_default_icon")
-                                        put("loop", false)
-                                        put("autoplay", false)
-                                        put("number", 0)
-                                    })
-                                }
-                                put("smallIslandArea", smallIslandArea)
-                            }
-                            put("param_island", paramIsland)
-                        }
-                        builder.extras.putString("miui.focus.param.custom", customJson.toString())
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-
-        val notification = builder.build()
-        notificationManager.notify(notificationId, notification)
+        // Orange branch: every cast is an OriginOS SuperX atomic notification + OriginIsland.
+        postOriginIsland(intent, notificationId, title, text, subtext, sourceApp, statusChipText, iconObj, iconRes)
     }
 
     /**
@@ -732,17 +296,21 @@ class PlaygroundService : Service() {
             // wire a whole-card click, so 0–1 action notifications stay on a tappable template (the lone
             // action shows as the in-card chip) so tapping the card still opens the source app.
             val sourceRv = NotificationCastListener.activeRemoteViews[notificationId] ?: intent.getParcelableExtraSafe("miui_rv", android.widget.RemoteViews::class.java)
-            val isOngoing = intent.getBooleanExtra("is_ongoing", false)
-            val shouldGenerateLiveUpdate = sourceRv == null && (isOngoing || hasProgress)
+            val explicitCustomTemplate = intent.getParcelableExtraSafe("oi_custom_template", android.widget.RemoteViews::class.java)
 
             val templateExtra = intent.getIntExtra("oi_template", 0)
+            // Orange branch: in Auto mode every cast renders our OWN flattened Template-7 card, built
+            // from the notification's extracted data (title/text/icon/progress/actions). Full design
+            // control, zero dependence on the source app's proprietary RemoteViews. Explicit playground
+            // templates (1..9) are still honoured as-is.
             val template = when {
                 templateExtra in 1..9 -> templateExtra
-                sourceRv != null || shouldGenerateLiveUpdate -> OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM
-                originActions.size >= 2 -> OriginIslandConstants.TEMPLATE_BUTTONS
-                hasProgress -> OriginIslandConstants.TEMPLATE_PROGRESS_VISUAL
-                else -> OriginIslandConstants.TEMPLATE_BASE
+                else -> OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM
             }
+            // Generate our card whenever the template is custom and we have neither a relayed source
+            // RemoteViews (handled by the wrapper below) nor an explicit one (e.g. the media player).
+            val generateCard = template == OriginIslandConstants.TEMPLATE_NOTIF_CUSTOM &&
+                sourceRv == null && explicitCustomTemplate == null
             val rightTemplateExtra = intent.getIntExtra("oi_right_template", 0)
             // Right island: progress ring when there's progress, otherwise plain text (template 4
             // with no icon → "double-sided text", no capsule pill, no redundant second icon).
@@ -812,7 +380,6 @@ class PlaygroundService : Service() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            val explicitCustomTemplate = intent.getParcelableExtraSafe("oi_custom_template", android.widget.RemoteViews::class.java)
             val waveState = intent.getIntExtra("oi_wave_state", 1)
             val waveColorList = intent.getStringArrayListExtra("oi_wave_color")
 
@@ -831,7 +398,7 @@ class PlaygroundService : Service() {
                 wrappedRv.setOnClickPendingIntent(R.id.rv_wrapper_container, clickResp)
                 wrappedRv.forceFullReapply()
                 wrappedRv
-            } else if (shouldGenerateLiveUpdate) {
+            } else if (generateCard) {
                 val flip = !(originRvToggle[notificationId] ?: false)
                 originRvToggle[notificationId] = flip
                 val layoutId = if (flip) R.layout.layout_origin_live_update else R.layout.layout_origin_live_update_alt
@@ -1095,9 +662,8 @@ class PlaygroundService : Service() {
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (manager.getNotificationChannel(channelId) == null) {
                 val channelName = when (channelId) {
-                    HYPER_CHANNEL_ID -> "HyperIsland"
                     ORIGIN_CHANNEL_ID -> "OriginIsland"
-                    else -> "Live Updates"
+                    else -> "Background"
                 }
                 val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
                 channel.description = "Channel for $channelName Service"

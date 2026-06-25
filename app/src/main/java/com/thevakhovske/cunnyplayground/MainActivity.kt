@@ -153,7 +153,8 @@ fun MainScreen() {
     // Tab set: Playground, [island], Re-Caster, Inspector
     val tabIds = buildList {
         add("playground")
-        if (showOrigin) add("originisland") else if (showHyper) add("hyperisland")
+        // Orange branch: OriginIsland is the only island mode.
+        add("originisland")
         add("recaster")
         add("inspector")
     }
@@ -182,11 +183,6 @@ fun MainScreen() {
             TopAppBar(
                 title = stringResource(titleFor(current)),
                 actions = {
-                    if (current == "hyperisland") {
-                        IconButton(onClick = { context.startActivity(Intent(context, ExamplesActivity::class.java)) }) {
-                            Icon(imageVector = MiuixIcons.Settings, contentDescription = stringResource(R.string.settings))
-                        }
-                    }
                     if (current == "originisland") {
                         IconButton(onClick = { context.startActivity(Intent(context, OriginSamplesActivity::class.java)) }) {
                             Icon(imageVector = MiuixIcons.SelectAll, contentDescription = stringResource(R.string.title_origin_samples))
@@ -218,7 +214,6 @@ fun MainScreen() {
         when (current) {
             "playground" -> PlaygroundScreen(paddingValues, scrollBehavior)
             "originisland" -> OriginIslandScreen(paddingValues, scrollBehavior)
-            "hyperisland" -> HyperIslandScreen(paddingValues, scrollBehavior)
             "recaster" -> RecasterScreen(paddingValues, scrollBehavior)
             "inspector" -> InspectorScreen(paddingValues, scrollBehavior)
         }
@@ -977,7 +972,8 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
     var showProgressPercent by remember { mutableStateOf(prefs.getBoolean("show_progress_percentage", false)) }
     var limitChipText by remember { mutableStateOf(prefs.getBoolean("limit_chip_7char", false)) }
     var castMediaSessions by remember { mutableStateOf(prefs.getBoolean("cast_media_sessions", false)) }
-    var castMode by remember { mutableStateOf(prefs.getString("cast_mode", "live_updates") ?: "live_updates") }
+    // Orange branch: OriginIsland is the only cast mode; downstream per-app config gates on this.
+    val castMode = "originisland"
 
     val pm = context.packageManager
     val enabledApps = remember { mutableStateListOf<EnabledApp>() }
@@ -1069,40 +1065,6 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
             }
         }
 
-        item {
-            SmallTitle(stringResource(R.string.section_cast_as))
-            Card(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()) {
-                RadioButtonPreference(
-                    selected = castMode == "live_updates",
-                    onClick = {
-                        castMode = "live_updates"
-                        prefs.edit().putString("cast_mode", "live_updates").apply()
-                    },
-                    title = stringResource(R.string.mode_live_updates)
-                )
-                if (isMiuiRegion()) {
-                    RadioButtonPreference(
-                        selected = castMode == "hyperisland",
-                        onClick = {
-                            castMode = "hyperisland"
-                            prefs.edit().putString("cast_mode", "hyperisland").apply()
-                        },
-                        title = stringResource(R.string.mode_hyperisland)
-                    )
-                }
-                if (isOriginOs()) {
-                    RadioButtonPreference(
-                        selected = castMode == "originisland",
-                        onClick = {
-                            castMode = "originisland"
-                            prefs.edit().putString("cast_mode", "originisland").apply()
-                        },
-                        title = stringResource(R.string.mode_originisland),
-                        summary = stringResource(R.string.pref_cast_notifs_origin_summary)
-                    )
-                }
-            }
-        }
 
         if (isMiuiCN() && castMode == "hyperisland") {
             item {
