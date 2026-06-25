@@ -59,6 +59,29 @@ class NotificationCastListener : NotificationListenerService() {
         }
     }
 
+    /** True if [token] is the system's currently-active (highest-priority) media session. */
+    private fun isActiveMediaSession(token: android.media.session.MediaSession.Token): Boolean {
+        return try {
+            val msm = getSystemService(android.media.session.MediaSessionManager::class.java)
+            val component = android.content.ComponentName(this, NotificationCastListener::class.java)
+            val controllers = msm.getActiveSessions(component)
+            // getActiveSessions returns controllers ordered by priority; index 0 is the active one.
+            controllers.firstOrNull()?.sessionToken == token
+        } catch (e: Throwable) {
+            Log.e("MediaCast", "getActiveSessions failed", e)
+            true // fail open — better to cast than to silently drop
+        }
+    }
+
+    /** Cancels any island previously cast for this media notification (e.g. when it stops being active). */
+    private fun cancelMediaCast(sbn: StatusBarNotification) {
+        val castId = (sbn.key.hashCode() and 0x7FFFFFFF) % 10000 + 20000
+        startService(Intent(this, PlaygroundService::class.java).apply {
+            action = PlaygroundService.ACTION_CANCEL
+            putExtra("id", castId)
+        })
+    }
+
     private fun getComplexRemoteViews(notification: Notification): RemoteViews? {
         val options = listOfNotNull(
             notification.bigContentView,
@@ -82,10 +105,11 @@ class NotificationCastListener : NotificationListenerService() {
                     
                     if (mediaSession != null) {
                         if (isMediaCastingEnabled && !ignoredMediaApps.contains(sbn.packageName)) {
-                            // Only poll/process if the controller is actively playing to save battery
+                            // Only poll/process if the controller is actively playing to save battery,
+                            // and only for the active (highest-priority) session.
                             val controller = mediaCallbacks[sbn.key]?.first
                             val isPlaying = controller?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
-                            if (isPlaying) {
+                            if (isPlaying && isActiveMediaSession(mediaSession)) {
                                 processMediaNotification(sbn, mediaSession)
                             }
                         }
@@ -192,15 +216,28 @@ class NotificationCastListener : NotificationListenerService() {
         val mediaSession = extras.getParcelableSafe("android.mediaSession", android.media.session.MediaSession.Token::class.java)
         val template = extras.getString("android.template")
         val isMediaTemplate = template == "android.app.Notification\$MediaStyle"
-        
-        if (mediaSession != null || isMediaTemplate) {
+        // Call notifications (e.g. Telegram VoIP) expose a MediaSession for audio routing but are NOT
+        // music — treat them as normal notifications so they still cast as an island.
+        val isCall = sbn.notification.category == Notification.CATEGORY_CALL ||
+            template == "android.app.Notification\$CallStyle"
+
+        if ((mediaSession != null || isMediaTemplate) && !isCall) {
             val ignoredMediaApps = prefs.getStringSet("cast_ignored_media_apps", emptySet()) ?: emptySet()
-            if (isMediaCastingEnabled && !ignoredMediaApps.contains(sbn.packageName) && mediaSession != null) {
-                processMediaNotification(sbn, mediaSession)
+            val canCastMedia = isMediaCastingEnabled && !ignoredMediaApps.contains(sbn.packageName) && mediaSession != null
+            if (canCastMedia) {
+                // Only the active (highest-priority) media session is cast — otherwise a second paused
+                // player would spawn its own island. Non-active sessions get their stale cast cancelled.
+                if (isActiveMediaSession(mediaSession!!)) {
+                    processMediaNotification(sbn, mediaSession)
+                } else {
+                    cancelMediaCast(sbn)
+                }
+                return
             }
-            // Media notifications are exclusively handled by the Media Player Island if enabled.
-            // If disabled or ignored, we also don't want them polluting the regular Live Updates.
-            return 
+            // A genuine music card (MediaStyle) is swallowed so it doesn't show as a plain island. But a
+            // notification that merely carries a MediaSession (calls, some apps) with media-casting off
+            // should still cast normally — fall through instead of dropping it.
+            if (isMediaTemplate) return
         }
 
         if (!isCastingEnabled) return
@@ -214,18 +251,24 @@ class NotificationCastListener : NotificationListenerService() {
             return
         }
 
-        // Check app filter (if set) for regular notifications
+        // App filter — but the "indiscriminately cast ongoing" option forces every ongoing notification
+        // through (OriginOS has no native Live Updates), bypassing the per-app allowlist.
+        val castAllOngoing = prefs.getBoolean("cast_all_ongoing", false)
+        val isOngoingNotif = (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
         val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
-        if (enabledApps != null && !enabledApps.contains(sbn.packageName)) {
-            //Log.d("NotificationCast", "Skipping notification from ${sbn.packageName} (not in filter)")
+        val passesAppFilter = enabledApps == null || enabledApps.contains(sbn.packageName)
+        if (!passesAppFilter && !(castAllOngoing && isOngoingNotif)) {
             return
         }
         val titleExtra = extras.getCharSequence("android.title")
         val textExtra = extras.getCharSequence("android.text")
+        val bigTextExtra = extras.getCharSequence("android.bigText")
         val subTextExtra = extras.getCharSequence("android.subText")
 
         val rawTitle = titleExtra?.toString()?.trim() ?: ""
         val rawText = textExtra?.toString()?.trim() ?: ""
+        // Prefer the expanded bigText for the card body so the full content shows.
+        val rawBigText = bigTextExtra?.toString()?.trim() ?: ""
         val rawSubText = subTextExtra?.toString()?.trim() ?: ""
 
         // Intercept regardless of empty or package-name-matching content (previously these were
@@ -387,7 +430,11 @@ class NotificationCastListener : NotificationListenerService() {
         // Extract Progress
         val progress = extras.getInt("android.progress", 0)
         val progressMax = extras.getInt("android.progressMax", 0)
-        val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false)
+        // Some apps (e.g. Telegram while uploading) leave progressIndeterminate=true even after they
+        // start reporting a real max — which froze the cast on the "preparing" spinner. Treat it as
+        // determinate the moment a real max exists so the bar actually fills.
+        val isIndeterminate = extras.getBoolean("android.progressIndeterminate", false) && progressMax <= 0
+        Log.d("ProgressCast", "${sbn.packageName} progress=$progress/$progressMax indeterminate=$isIndeterminate")
         val hasProgress = progressMax > 0 || isIndeterminate
         
         // Extract multi-segment progress
@@ -460,6 +507,7 @@ class NotificationCastListener : NotificationListenerService() {
             action = PlaygroundService.ACTION_START
             putExtra("title", finalTitle)
             putExtra("text", finalText)
+            putExtra("big_text", rawBigText)
             putExtra("subtext", rawSubText)
             putExtra("source_app", sourceApp)
             putExtra("source_pkg", sbn.packageName)
@@ -955,7 +1003,27 @@ class NotificationCastListener : NotificationListenerService() {
         rv.setOnClickPendingIntent(R.id.media_btn_play_pause, createPi(MediaControlReceiver.ACTION_PLAY_PAUSE))
         rv.setOnClickPendingIntent(R.id.media_btn_next, createPi(MediaControlReceiver.ACTION_NEXT))
         rv.setOnClickPendingIntent(R.id.media_btn_prev, createPi(MediaControlReceiver.ACTION_PREV))
-        
+
+        // Seek grid: 10 tap cells over the bar, each jumps to the centre of its decile (5%, 15% … 95%).
+        val seekIds = intArrayOf(
+            R.id.media_seek_0, R.id.media_seek_1, R.id.media_seek_2, R.id.media_seek_3, R.id.media_seek_4,
+            R.id.media_seek_5, R.id.media_seek_6, R.id.media_seek_7, R.id.media_seek_8, R.id.media_seek_9
+        )
+        for (i in seekIds.indices) {
+            val pct = i * 10 + 5
+            val seekPi = android.app.PendingIntent.getBroadcast(
+                this, ("seek_${castId}_$pct").hashCode(),
+                android.content.Intent(this, MediaControlReceiver::class.java).apply {
+                    action = MediaControlReceiver.ACTION_SEEK
+                    putExtra("cast_id", castId)
+                    putExtra(MediaControlReceiver.EXTRA_TOKEN, sessionToken)
+                    putExtra(MediaControlReceiver.EXTRA_SEEK_PERCENT, pct)
+                },
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            rv.setOnClickPendingIntent(seekIds[i], seekPi)
+        }
+
         rv.setImageViewResource(R.id.media_btn_play_pause, if (isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play)
         
         val intent = android.content.Intent(this, PlaygroundService::class.java).apply {
@@ -986,6 +1054,9 @@ class NotificationCastListener : NotificationListenerService() {
             
             putExtra("title", "\u200B")
             putExtra("text", "\u200B")
+            // Capsule left text must be blank (album art only) \u2014 without this it falls back to the
+            // "Notification" sourceApp default. Zero-width space keeps the slot empty.
+            putExtra("oi_left_content", "\u200B")
             putExtra("status_chip_text", timeText)
             putExtra("force_update_tick", System.currentTimeMillis())
             putExtra("click_resp", sbn.notification.contentIntent)

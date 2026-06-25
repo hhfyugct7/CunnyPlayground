@@ -14,7 +14,11 @@ class MediaControlReceiver : BroadcastReceiver() {
         const val ACTION_PLAY_PAUSE = "com.thevakhovske.cunnyplayground.MEDIA_PLAY_PAUSE"
         const val ACTION_NEXT = "com.thevakhovske.cunnyplayground.MEDIA_NEXT"
         const val ACTION_PREV = "com.thevakhovske.cunnyplayground.MEDIA_PREV"
+        const val ACTION_SEEK = "com.thevakhovske.cunnyplayground.MEDIA_SEEK"
+        const val ACTION_CUSTOM = "com.thevakhovske.cunnyplayground.MEDIA_CUSTOM"
         const val EXTRA_TOKEN = "media_session_token"
+        const val EXTRA_SEEK_PERCENT = "seek_percent"
+        const val EXTRA_CUSTOM_ACTION = "custom_action"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -47,6 +51,18 @@ class MediaControlReceiver : BroadcastReceiver() {
                 }
                 ACTION_NEXT -> transportControls.skipToNext()
                 ACTION_PREV -> transportControls.skipToPrevious()
+                ACTION_SEEK -> {
+                    val percent = intent.getIntExtra(EXTRA_SEEK_PERCENT, -1)
+                    val duration = controller.metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                    if (percent in 0..100 && duration > 0) {
+                        transportControls.seekTo(duration * percent / 100)
+                    }
+                }
+                ACTION_CUSTOM -> {
+                    // A passthrough for the real player's custom actions (like/shuffle/etc.).
+                    val custom = intent.getStringExtra(EXTRA_CUSTOM_ACTION)
+                    if (custom != null) transportControls.sendCustomAction(custom, null)
+                }
             }
         } catch (e: Exception) {
             Log.e("MediaControlReceiver", "Failed to dispatch media control", e)

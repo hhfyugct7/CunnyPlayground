@@ -18,7 +18,7 @@
             android:scaleType="centerCrop" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
             android:layout_marginStart="14dp"
@@ -28,23 +28,21 @@
 
             <TextView
                 android:id="@+id/live_update_title"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:singleLine="true"
+                android:maxLines="2"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/live_update_text"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:singleLine="true"
                 android:textColor="#B3FFFFFF"
-                android:textSize="14sp" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -96,6 +94,7 @@
         android:layout_marginTop="16dp"
         android:indeterminateTint="#34C759"
         android:progressTint="#34C759"
+        android:progressBackgroundTint="#363636"
         android:visibility="gone" />
 
     <LinearLayout

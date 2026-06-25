@@ -972,6 +972,7 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
     var showProgressPercent by remember { mutableStateOf(prefs.getBoolean("show_progress_percentage", false)) }
     var limitChipText by remember { mutableStateOf(prefs.getBoolean("limit_chip_7char", false)) }
     var castMediaSessions by remember { mutableStateOf(prefs.getBoolean("cast_media_sessions", false)) }
+    var castAllOngoing by remember { mutableStateOf(prefs.getBoolean("cast_all_ongoing", false)) }
     // Orange branch: OriginIsland is the only cast mode; downstream per-app config gates on this.
     val castMode = "originisland"
 
@@ -1034,6 +1035,15 @@ fun RecasterScreen(paddingValues: PaddingValues, scrollBehavior: ScrollBehavior)
                     },
                     title = "Cast Media Sessions",
                     summary = "Intercept media notifications and display an interactive music player"
+                )
+                SwitchPreference(
+                    checked = castAllOngoing,
+                    onCheckedChange = {
+                        castAllOngoing = it
+                        prefs.edit().putBoolean("cast_all_ongoing", it).apply()
+                    },
+                    title = "Cast all ongoing notifications",
+                    summary = "Indiscriminately cast every ongoing notification (Live Updates, calls, etc.) — OriginOS has no native Live Updates"
                 )
                 SwitchPreference(
                     checked = useAppIcon,

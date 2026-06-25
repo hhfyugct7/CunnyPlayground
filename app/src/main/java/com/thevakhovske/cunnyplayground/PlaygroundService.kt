@@ -406,8 +406,10 @@ class PlaygroundService : Service() {
                 rv.forceFullReapply()
                 rv.setOnClickPendingIntent(R.id.live_update_container, clickResp)
                 rv.setTextViewText(R.id.live_update_title, title)
-                rv.setTextViewText(R.id.live_update_text, text)
-                
+                // Prefer the expanded bigText for the card body so the full message shows; fall back to text.
+                val bigText = intent.getStringExtra("big_text")?.takeIf { it.isNotBlank() }
+                rv.setTextViewText(R.id.live_update_text, bigText ?: text)
+
                 // Icon
                 if (iconObj != null && Build.VERSION.SDK_INT >= 23) {
                     val roundedIcon = createRoundedIcon(this, iconObj, 12f, 44f, 44f) ?: iconObj
@@ -457,7 +459,7 @@ class PlaygroundService : Service() {
                         rv.setViewVisibility(R.id.live_update_segments_container, android.view.View.VISIBLE)
                         rv.removeAllViews(R.id.live_update_segments_container)
                         val activeColor = if (notificationColor != 0) notificationColor else android.graphics.Color.parseColor("#34C759")
-                        val inactiveColor = android.graphics.Color.parseColor("#33FFFFFF")
+                        val inactiveColor = android.graphics.Color.parseColor("#363636")
                         val activeSegments = if (progressMax > 0) (progress * segmentsCount) / progressMax else 0
                         for (i in 0 until segmentsCount) {
                             val segRv = android.widget.RemoteViews(packageName, R.layout.layout_origin_progress_segment)
